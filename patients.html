@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Care Sync — Patients</title>
+
+<meta name="description" content="Browse and manage patient records with dual-coded NAMASTE and ICD-11 diagnoses.">
+<link rel="icon" type="image/png" href="favicon.png">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-wrap">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><i class="fa-solid fa-hospital me-2"></i>Care<span>Sync</span></div>
+
+    <a href="dashboard.html" class="side-link"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+    <a href="patients.html" class="side-link active"><i class="fa-solid fa-user-injured"></i> Patients</a>
+    <a href="mapping.html" class="side-link"><i class="fa-solid fa-code-branch"></i> Disease Mapping</a>
+    <a href="diagnoses.html" class="side-link"><i class="fa-solid fa-stethoscope"></i> Diagnoses</a>
+    <a href="reports.html" class="side-link"><i class="fa-solid fa-chart-simple"></i> Reports</a>
+    <a href="settings.html" class="side-link"><i class="fa-solid fa-gear"></i> Settings</a>
+
+    <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+
+    <!-- mobile top bar -->
+    <div class="mobile-topbar">
+      <div class="brand">Care<span>Sync</span></div>
+      <button><i class="fa-solid fa-bars"></i></button>
+    </div>
+
+    <!-- top bar -->
+    <div class="topbar">
+      <div class="topbar-title">
+        <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn">
+          <i class="fa-regular fa-bell"></i>
+          <span class="notif-dot"></span>
+        </button>
+        <div class="user-chip">
+          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+          <span>Dr. Sonu</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <div>
+          <h4>Patients</h4>
+          <p>Manage patient records with dual-coded diagnoses.</p>
+        </div>
+        <button class="quick-action-btn page-header-btn">
+          <i class="fa-solid fa-plus"></i> Add Patient
+        </button>
+      </div>
+
+      <!-- Search + Filter bar -->
+      <div class="filter-bar">
+        <div class="search-box patient-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search by name, ID, or diagnosis...">
+        </div>
+        <select class="filter-select">
+          <option>All Status</option>
+          <option>Stable</option>
+          <option>Critical</option>
+          <option>Under Review</option>
+        </select>
+      </div>
+
+      <!-- Patients Table -->
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="table mb-0 patients-table">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Age</th>
+                <th>Diagnosis</th>
+                <th>NAMASTE Code</th>
+                <th>ICD-11 Code</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <tr>
+                <td class="patient-cell">
+                  <img class="patient-avatar" src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=100&q=80" alt="">
+                  <div>
+                    <div class="patient-name">Snehan Naicker</div>
+                    <div class="patient-id">P001</div>
+                  </div>
+                </td>
+                <td>20</td>
+                <td>Cancer</td>
+                <td><span class="code-pill pill-namaste">AYU-1187</span></td>
+                <td><span class="code-pill pill-icd">2A00</span></td>
+                <td><span class="status-pill status-alert"><i class="fa-solid fa-triangle-exclamation"></i> Critical</span></td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+
+              <tr>
+                <td class="patient-cell">
+                  <img class="patient-avatar" src="https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?auto=format&fit=crop&w=100&q=80" alt="">
+                  <div>
+                    <div class="patient-name">Anuj Nadar</div>
+                    <div class="patient-id">P002</div>
+                  </div>
+                </td>
+                <td>22</td>
+                <td>Diabetes (Prameha)</td>
+                <td><span class="code-pill pill-namaste">AYU-0568</span></td>
+                <td><span class="code-pill pill-icd">5A11</span></td>
+                <td><span class="status-pill status-stable"><i class="fa-solid fa-circle-check"></i> Stable</span></td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+
+              <tr>
+                <td class="patient-cell">
+                  <img class="patient-avatar" src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80" alt="">
+                  <div>
+                    <div class="patient-name">Arjun Patil</div>
+                    <div class="patient-id">P003</div>
+                  </div>
+                </td>
+                <td>42</td>
+                <td>Prameha</td>
+                <td><span class="code-pill pill-namaste">AYU-0042</span></td>
+                <td><span class="code-pill pill-icd">SP70</span></td>
+                <td><span class="status-pill status-stable"><i class="fa-solid fa-circle-check"></i> Stable</span></td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+
+              <tr>
+                <td class="patient-cell">
+                  <img class="patient-avatar" src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=100&q=80" alt="">
+                  <div>
+                    <div class="patient-name">Rekha Sharma</div>
+                    <div class="patient-id">P004</div>
+                  </div>
+                </td>
+                <td>35</td>
+                <td>Vata Imbalance</td>
+                <td><span class="code-pill pill-namaste">AYU-0117</span></td>
+                <td><span class="code-pill pill-icd">SP71</span></td>
+                <td><span class="status-pill status-review"><i class="fa-solid fa-hourglass-half"></i> Under Review</span></td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+
+              <tr>
+                <td class="patient-cell">
+                  <img class="patient-avatar" src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="">
+                  <div>
+                    <div class="patient-name">Divya Nair</div>
+                    <div class="patient-id">P005</div>
+                  </div>
+                </td>
+                <td>29</td>
+                <td>Pitta Excess</td>
+                <td><span class="code-pill pill-namaste">AYU-0093</span></td>
+                <td><span class="code-pill pill-icd">SP72</span></td>
+                <td><span class="status-pill status-stable"><i class="fa-solid fa-circle-check"></i> Stable</span></td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="table-footer">
+          <span class="table-footer-text">Showing 5 of 1,245 patients</span>
+          <div class="pagination-controls">
+            <button class="page-btn"><i class="fa-solid fa-chevron-left"></i></button>
+            <button class="page-btn page-btn-active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn"><i class="fa-solid fa-chevron-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

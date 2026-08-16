@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Care Sync — Dashboard</title>
+
+<meta name="description" content="Care Sync dashboard — manage patients, view AYUSH morbidity analytics, and track dual-coded diagnoses.">
+<link rel="icon" type="image/png" href="favicon.png">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-wrap">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><i class="fa-solid fa-hospital me-2"></i>Care<span>Sync</span></div>
+
+    <a href="dashboard.html" class="side-link active"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+    <a href="patients.html" class="side-link"><i class="fa-solid fa-user-injured"></i> Patients</a>
+    <a href="mapping.html" class="side-link"><i class="fa-solid fa-code-branch"></i> Disease Mapping</a>
+    <a href="diagnoses.html" class="side-link"><i class="fa-solid fa-stethoscope"></i> Diagnoses</a>
+    <a href="reports.html" class="side-link"><i class="fa-solid fa-chart-simple"></i> Reports</a>
+    <a href="settings.html" class="side-link"><i class="fa-solid fa-gear"></i> Settings</a>
+
+    <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+
+    <!-- mobile top bar -->
+    <div class="mobile-topbar">
+      <div class="brand">Care<span>Sync</span></div>
+      <button><i class="fa-solid fa-bars"></i></button>
+    </div>
+
+    <!-- top bar -->
+    <div class="topbar">
+      <div class="topbar-title">
+        <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn">
+          <i class="fa-regular fa-bell"></i>
+          <span class="notif-dot"></span>
+        </button>
+        <div class="user-chip">
+          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+          <span>Dr. Sonu</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Greeting -->
+      <div class="greeting-block">
+        <h4>Good Morning, Dr. Sonu</h4>
+        <p>Here's your healthcare overview.</p>
+      </div>
+
+      <!-- Overview stat cards -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="stat-card-lg">
+            <div class="stat-icon" style="background:rgba(14,165,160,0.1); color:var(--teal);">
+              <i class="fa-solid fa-user-injured"></i>
+            </div>
+            <div>
+              <div class="stat-num-lg">1,245</div>
+              <div class="stat-label">Patients</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stat-card-lg">
+            <div class="stat-icon" style="background:rgba(10,37,64,0.08); color:var(--navy);">
+              <i class="fa-solid fa-stethoscope"></i>
+            </div>
+            <div>
+              <div class="stat-num-lg">2,856</div>
+              <div class="stat-label">Diagnoses</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stat-card-lg">
+            <div class="stat-icon" style="background:rgba(76,175,125,0.12); color:var(--soft-green);">
+              <i class="fa-solid fa-code-compare"></i>
+            </div>
+            <div>
+              <div class="stat-num-lg">542</div>
+              <div class="stat-label">Mappings</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <h6 class="section-label">Quick Actions</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <button class="quick-action-btn">
+            <i class="fa-solid fa-plus"></i> Add Patient
+          </button>
+        </div>
+        <div class="col-6 col-md-3">
+          <button class="quick-action-btn quick-action-outline">
+            <i class="fa-solid fa-magnifying-glass"></i> Disease Search
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent Patients -->
+      <div class="table-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="card-heading">Recent Patients</h6>
+          <a href="patients.html" class="view-all-link">View All</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Diagnosis</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>P001</td>
+                <td>Snehan Naicker</td>
+                <td>20</td>
+                <td>Cancer</td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+              <tr>
+                <td>P002</td>
+                <td>Anuj Nadar</td>
+                <td>22</td>
+                <td>Diabetes</td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+              <tr>
+                <td>P003</td>
+                <td>Arjun Patil</td>
+                <td>42</td>
+                <td>Prameha</td>
+                <td class="text-end"><a href="#" class="view-link">View</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Disease Mapping Overview -->
+      <div class="table-card">
+        <h6 class="card-heading mb-3">Disease Mapping Overview</h6>
+        <div class="mapping-overview">
+          <div class="mapping-bar">
+            <div class="mapping-bar-fill" style="width:96%;"></div>
+          </div>
+          <div class="mapping-legend">
+            <span><span class="dot dot-mapped"></span> Mapped: 542</span>
+            <span><span class="dot dot-unmapped"></span> Unmapped: 23</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
