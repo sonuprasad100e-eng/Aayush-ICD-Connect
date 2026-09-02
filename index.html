@@ -44,17 +44,17 @@
       <h3>Sign in to Care Sync</h3>
       <p class="sub">Access your dual-coding dashboard and patient records.</p>
 
-      <form>
+      <form id="loginForm">
         <label class="form-label">Email or ABHA ID</label>
         <div class="input-wrap">
           <i class="fa-solid fa-envelope"></i>
-          <input type="text" class="form-control-custom" placeholder="doctor@caresync.in">
+          <input type="text" class="form-control-custom" id="identifier" placeholder="doctor@caresync.in" required>
         </div>
 
         <label class="form-label">Password</label>
         <div class="input-wrap">
           <i class="fa-solid fa-lock"></i>
-          <input type="password" class="form-control-custom" id="passField" placeholder="Enter your password">
+          <input type="password" class="form-control-custom" id="passField" placeholder="Enter your password" required>
           <button type="button" class="toggle-pass"><i class="fa-regular fa-eye" id="eyeIcon"></i></button>
         </div>
 
@@ -66,7 +66,7 @@
           <a href="#">Forgot password?</a>
         </div>
 
-        <a href="dashboard.html" class="btn-login">Sign In <i class="fa-solid fa-arrow-right ms-1"></i></a>
+        <button type="submit" class="btn-login">Sign In <i class="fa-solid fa-arrow-right ms-1"></i></button>
 
         <div class="divider">or continue with</div>
 

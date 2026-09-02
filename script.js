@@ -5,6 +5,8 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
+  const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000';
+
   /* ============================================
      1. SCROLL-REVEAL ANIMATIONS
      Used on: index.html (feature cards, workflow steps)
@@ -87,6 +89,52 @@ document.addEventListener('DOMContentLoaded', function () {
         passField.type = 'password';
         eyeIcon.classList.remove('fa-eye-slash');
         eyeIcon.classList.add('fa-eye');
+      }
+    });
+  }
+
+
+  /* ============================================
+     5. LOGIN SUBMISSION
+     Used on: index.html
+     ============================================ */
+
+  const loginForm = document.getElementById('loginForm');
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const identifierValue = document.getElementById('identifier').value.trim();
+      const passwordValue = passField.value;
+      const rememberMeValue = document.getElementById('remember').checked;
+      const payload = {
+        identifier: identifierValue,
+        password: passwordValue,
+        remember_me: rememberMeValue
+      };
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('careSyncToken', data.access_token);
+          localStorage.setItem('careSyncUser', JSON.stringify(data));
+          window.location.href = 'dashboard.html';
+        } else {
+          alert(data.detail || 'Invalid Email/ABHA ID or Password.');
+        }
+      } catch (error) {
+        console.error('Authentication Error:', error);
+        alert('Unable to reach authentication server.');
       }
     });
   }
