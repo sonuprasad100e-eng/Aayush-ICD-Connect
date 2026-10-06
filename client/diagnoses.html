@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Care Sync — Diagnoses</title>
+
+<meta name="description" content="Browse standardized AYUSH diagnoses across Ayurveda, Yoga, Unani, Siddha, and Homeopathy with dual-coded references.">
+<link rel="icon" type="image/png" href="favicon.png">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-wrap">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><i class="fa-solid fa-hospital me-2"></i>Care<span>Sync</span></div>
+
+    <a href="dashboard.html" class="side-link"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+    <a href="patients.html" class="side-link"><i class="fa-solid fa-user-injured"></i> Patients</a>
+    <a href="mapping.html" class="side-link"><i class="fa-solid fa-code-branch"></i> Disease Mapping</a>
+    <a href="diagnoses.html" class="side-link active"><i class="fa-solid fa-stethoscope"></i> Diagnoses</a>
+    <a href="reports.html" class="side-link"><i class="fa-solid fa-chart-simple"></i> Reports</a>
+    <a href="settings.html" class="side-link"><i class="fa-solid fa-gear"></i> Settings</a>
+
+    <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+
+    <!-- mobile top bar -->
+    <div class="mobile-topbar">
+      <div class="brand">Care<span>Sync</span></div>
+      <button><i class="fa-solid fa-bars"></i></button>
+    </div>
+
+    <!-- top bar -->
+    <div class="topbar">
+      <div class="topbar-title">
+        <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn">
+          <i class="fa-regular fa-bell"></i>
+          <span class="notif-dot"></span>
+        </button>
+        <div class="user-chip">
+          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+          <span>Dr. Sonu</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <div>
+          <h4>Diagnoses Library</h4>
+          <p>Browse standardized AYUSH diagnoses with dual-coded references.</p>
+        </div>
+        <div class="search-box diagnoses-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search diagnoses...">
+        </div>
+      </div>
+
+      <!-- System filter tabs -->
+      <div class="system-tabs">
+        <button class="system-tab system-tab-active">All Systems</button>
+        <button class="system-tab">Ayurveda</button>
+        <button class="system-tab">Yoga & Naturopathy</button>
+        <button class="system-tab">Unani</button>
+        <button class="system-tab">Siddha</button>
+        <button class="system-tab">Homeopathy</button>
+      </div>
+
+      <!-- Diagnosis cards grid -->
+      <div class="row g-3">
+
+        <div class="col-md-6 col-xl-4">
+          <div class="diagnosis-card">
+            <div class="diagnosis-card-top">
+              <span class="system-tag tag-ayurveda">Ayurveda</span>
+              <span class="fhir-badge"><i class="fa-solid fa-check"></i> FHIR R4</span>
+            </div>
+            <h6>Jwara <span class="diagnosis-sub">(Fever)</span></h6>
+            <p>Elevated body temperature caused by dosha imbalance, commonly Pitta-driven.</p>
+            <div class="diagnosis-codes">
+              <span class="code-pill pill-namaste">AYU-0011</span>
+              <i class="fa-solid fa-arrow-right-long code-arrow"></i>
+              <span class="code-pill pill-icd">MG26</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+          <div class="diagnosis-card">
+            <div class="diagnosis-card-top">
+              <span class="system-tag tag-ayurveda">Ayurveda</span>
+              <span class="fhir-badge"><i class="fa-solid fa-check"></i> FHIR R4</span>
+            </div>
+            <h6>Kasa <span class="diagnosis-sub">(Cough)</span></h6>
+            <p>Respiratory disorder linked to Vata-Kapha aggravation in the chest region.</p>
+            <div class="diagnosis-codes">
+              <span class="code-pill pill-namaste">AYU-0034</span>
+              <i class="fa-solid fa-arrow-right-long code-arrow"></i>
+              <span class="code-pill pill-icd">MD12</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+          <div class="diagnosis-card">
+            <div class="diagnosis-card-top">
+              <span class="system-tag tag-ayurveda">Ayurveda</span>
+              <span class="fhir-badge"><i class="fa-solid fa-check"></i> FHIR R4</span>
+            </div>
+            <h6>Prameha <span class="diagnosis-sub">(Diabetes)</span></h6>
+            <p>Metabolic disorder characterized by excessive urination and Kapha imbalance.</p>
+            <div class="diagnosis-codes">
+              <span class="code-pill pill-namaste">AYU-0042</span>
+              <i class="fa-solid fa-arrow-right-long code-arrow"></i>
+              <span class="code-pill pill-icd">5A11</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+          <div class="diagnosis-card">
+            <div class="diagnosis-card-top">
+              <span class="system-tag tag-yoga">Yoga & Naturopathy</span>
+              <span class="fhir-badge"><i class="fa-solid fa-check"></i> FHIR R4</span>
+            </div>
+            <h6>Vata Dosha <span class="diagnosis-sub">Imbalance</span></h6>
+            <p>Functional nervous system disorder linked to irregular movement and anxiety.</p>
+            <div class="diagnosis-codes">
+              <span class="code-pill pill-namaste">AYU-0117</span>
+              <i class="fa-solid fa-arrow-right-long code-arrow"></i>
+              <span class="code-pill pill-icd">SP70</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+          <div class="diagnosis-card">
+            <div class="diagnosis-card-top">
+              <span class="system-tag tag-unani">Unani</span>
+              <span class="fhir-badge fhir-partial"><i class="fa-solid fa-clock"></i> Partial</span>
+            </div>
+            <h6>Su-e-Mizaj <span class="diagnosis-sub">(Temperament Disorder)</span></h6>
+            <p>Imbalance of the four humors affecting overall bodily temperament.</p>
+            <div class="diagnosis-codes">
+              <span class="code-pill pill-namaste">AYU-0205</span>
+              <i class="fa-solid fa-arrow-right-long code-arrow"></i>
+              <span class="code-pill pill-icd">SP80</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+          <div class="diagnosis-card">
+            <div class="diagnosis-card-top">
+              <span class="system-tag tag-siddha">Siddha</span>
+              <span class="fhir-badge"><i class="fa-solid fa-check"></i> FHIR R4</span>
+            </div>
+            <h6>Vali Noi <span class="diagnosis-sub">(Aging Disorders)</span></h6>
+            <p>Degenerative condition linked to imbalance of the three humors (Mukkutram).</p>
+            <div class="diagnosis-codes">
+              <span class="code-pill pill-namaste">AYU-0261</span>
+              <i class="fa-solid fa-arrow-right-long code-arrow"></i>
+              <span class="code-pill pill-icd">SP85</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

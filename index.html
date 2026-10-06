@@ -31,9 +31,9 @@
     </div>
 
     <div class="visual-stats">
-      <div><div class="num">1,024+</div><div class="lbl">Codes Mapped</div></div>
-      <div><div class="num">248</div><div class="lbl">Active Patients</div></div>
-      <div><div class="num">96%</div><div class="lbl">Claims Approved</div></div>
+      <div><div class="num" id="statClinics">—</div><div class="lbl">Registered Clinics</div></div>
+      <div><div class="num" id="statPatients">—</div><div class="lbl">Active Patients</div></div>
+      <div><div class="num" id="statMappings">—</div><div class="lbl">Codes Mapped</div></div>
     </div>
   </div>
 
@@ -75,10 +75,174 @@
         </button>
       </form>
 
-      <p class="signup-note">Don't have an account? <a href="#">Register your clinic</a></p>
+      <p class="signup-note">Don't have an account? <a href="#register" id="registerClinicLink" role="button">Register your clinic</a></p>
     </div>
   </div>
 
+</div>
+
+<!-- ===== CLINIC REGISTRATION MODAL ===== -->
+<div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content caresync-modal">
+      <div class="modal-header">
+        <div>
+          <div class="visual-brand">Care<span>Sync</span></div>
+          <div class="modal-eyebrow">CLINIC ONBOARDING</div>
+          <h4 class="modal-title" id="registerModalLabel">Register Your Clinic</h4>
+          <p class="modal-subtitle">Join CareSync to enable AYUSH &amp; ICD-11 dual coding and FHIR patient management.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="registerAlert" class="alert d-none" role="alert"></div>
+
+        <!-- SUCCESS STATE VIEW -->
+        <div id="registerSuccessView" class="text-center py-4 d-none">
+          <div class="success-icon-wrap mb-3">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <h4 class="fw-bold mb-2 text-navy" style="color:var(--navy);">Registration Complete!</h4>
+          <p class="text-muted mb-4" id="registerSuccessMsg">Your clinic has been registered in the database. You can now sign in with your credentials.</p>
+          <button type="button" class="btn-login px-4 py-2 d-inline-block" style="max-width:240px;" id="proceedToLoginBtn">
+            Proceed to Sign In <i class="fa-solid fa-arrow-right ms-1"></i>
+          </button>
+        </div>
+
+        <!-- FORM VIEW -->
+        <form id="clinicRegisterForm" novalidate>
+          <div class="row g-3">
+            <!-- Clinic Name -->
+            <div class="col-md-6">
+              <label class="form-label" for="regClinicName">Clinic Name <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-hospital"></i>
+                <input type="text" class="form-control-custom" id="regClinicName" name="clinicName" placeholder="e.g. Sanjeevani Ayush Clinic" required>
+              </div>
+            </div>
+
+            <!-- Doctor/Administrator Name -->
+            <div class="col-md-6">
+              <label class="form-label" for="regDoctorName">Doctor / Administrator Name <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-user-doctor"></i>
+                <input type="text" class="form-control-custom" id="regDoctorName" name="doctorName" placeholder="e.g. Dr. Priya Sharma" required>
+              </div>
+            </div>
+
+            <!-- Email -->
+            <div class="col-md-6">
+              <label class="form-label" for="regEmail">Email Address <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-envelope"></i>
+                <input type="email" class="form-control-custom" id="regEmail" name="email" placeholder="clinic@caresync.in" required>
+              </div>
+            </div>
+
+            <!-- Phone Number -->
+            <div class="col-md-6">
+              <label class="form-label" for="regPhone">Phone Number <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-phone"></i>
+                <input type="tel" class="form-control-custom" id="regPhone" name="phone" placeholder="+91 98765 43210" required>
+              </div>
+            </div>
+
+            <!-- ABHA ID (Optional) -->
+            <div class="col-md-6">
+              <label class="form-label" for="regAbhaId">ABHA ID <span class="text-muted fw-normal">(Optional)</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-shield-heart"></i>
+                <input type="text" class="form-control-custom" id="regAbhaId" name="abhaId" placeholder="12-3456-7890-1234">
+              </div>
+            </div>
+
+            <!-- Specialization -->
+            <div class="col-md-6">
+              <label class="form-label" for="regSpecialization">Specialization <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-stethoscope"></i>
+                <select class="form-control-custom" id="regSpecialization" name="specialization" required>
+                  <option value="Ayurveda Physician">Ayurveda Physician</option>
+                  <option value="Yoga & Naturopathy">Yoga &amp; Naturopathy</option>
+                  <option value="Unani Physician">Unani Physician</option>
+                  <option value="Siddha Physician">Siddha Physician</option>
+                  <option value="Homeopathy Physician">Homeopathy Physician</option>
+                  <option value="Integrative AYUSH Practice">Integrative AYUSH Practice</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Clinic Address -->
+            <div class="col-12">
+              <label class="form-label" for="regAddress">Clinic Address <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-location-dot"></i>
+                <input type="text" class="form-control-custom" id="regAddress" name="address" placeholder="Street / Building / Area" required>
+              </div>
+            </div>
+
+            <!-- City -->
+            <div class="col-md-4">
+              <label class="form-label" for="regCity">City <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-city"></i>
+                <input type="text" class="form-control-custom" id="regCity" name="city" placeholder="City" required>
+              </div>
+            </div>
+
+            <!-- State -->
+            <div class="col-md-4">
+              <label class="form-label" for="regState">State <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-map-location-dot"></i>
+                <input type="text" class="form-control-custom" id="regState" name="state" placeholder="State" required>
+              </div>
+            </div>
+
+            <!-- Pincode -->
+            <div class="col-md-4">
+              <label class="form-label" for="regPincode">Pincode <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-envelopes-bulk"></i>
+                <input type="text" class="form-control-custom" id="regPincode" name="pincode" placeholder="Pincode" required>
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="col-md-6">
+              <label class="form-label" for="regPassword">Password <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-lock"></i>
+                <input type="password" class="form-control-custom" id="regPassword" name="password" placeholder="Min. 6 characters" required>
+                <button type="button" class="toggle-pass toggle-reg-pass"><i class="fa-regular fa-eye" id="regEyeIcon"></i></button>
+              </div>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="col-md-6">
+              <label class="form-label" for="regConfirmPassword">Confirm Password <span class="text-danger">*</span></label>
+              <div class="input-wrap">
+                <i class="fa-solid fa-lock"></i>
+                <input type="password" class="form-control-custom" id="regConfirmPassword" name="confirmPassword" placeholder="Re-enter password" required>
+                <button type="button" class="toggle-pass toggle-reg-confirm-pass"><i class="fa-regular fa-eye" id="regConfirmEyeIcon"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-4 pt-2 border-top">
+            <button type="button" class="btn btn-link text-decoration-none p-0 text-muted" data-bs-dismiss="modal">
+              <i class="fa-solid fa-arrow-left me-1"></i> Return to Sign In
+            </button>
+            <button type="submit" class="btn-login px-4 py-2" id="submitRegisterBtn">
+              Register Clinic <i class="fa-solid fa-arrow-right ms-1"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>

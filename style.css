@@ -1676,3 +1676,99 @@ footer a:hover{ color:var(--teal); }
 @media(max-width:576px){
   .profile-photo-row{ flex-direction:column; align-items:flex-start; }
 }
+
+/* ============================================
+   CLINIC REGISTRATION MODAL
+   ============================================ */
+
+.caresync-modal {
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(10, 37, 64, 0.25);
+  overflow: hidden;
+}
+
+.caresync-modal .modal-header {
+  background: linear-gradient(160deg, var(--navy) 0%, var(--navy-light) 100%);
+  color: var(--white);
+  padding: 24px 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.caresync-modal .modal-header .visual-brand {
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 2px;
+}
+.caresync-modal .modal-header .visual-brand span {
+  color: var(--teal);
+}
+
+.caresync-modal .modal-eyebrow {
+  color: var(--teal);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.caresync-modal .modal-title {
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: var(--white);
+  margin-bottom: 4px;
+}
+
+.caresync-modal .modal-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  margin-bottom: 0;
+}
+
+.caresync-modal .modal-header .btn-close {
+  filter: invert(1) brightness(2);
+  opacity: 0.75;
+  transition: 0.2s;
+}
+.caresync-modal .modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+.caresync-modal .modal-body {
+  padding: 28px 30px;
+  background: var(--white);
+}
+
+.caresync-modal .input-wrap {
+  margin-bottom: 4px;
+}
+
+.caresync-modal .form-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--charcoal);
+  margin-bottom: 5px;
+}
+
+.caresync-modal .form-control-custom {
+  font-size: 0.9rem;
+  padding: 10px 14px 10px 42px;
+}
+
+.caresync-modal select.form-control-custom {
+  appearance: auto;
+  background-color: var(--white);
+}
+
+.caresync-modal .success-icon-wrap {
+  font-size: 3.5rem;
+  color: var(--soft-green);
+}
+
+.caresync-modal .alert {
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}

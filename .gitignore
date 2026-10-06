@@ -1,0 +1,9 @@
+.env
+.env.local
+.env.*.local
+server/node_modules/
+server/uploads/
+uploads/
+.DS_Store
+Thumbs.db
+server/.env

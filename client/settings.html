@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Care Sync — Settings</title>
+
+<meta name="description" content="Manage your Care Sync profile, security, preferences, and notification settings.">
+<link rel="icon" type="image/png" href="favicon.png">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-wrap">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><i class="fa-solid fa-hospital me-2"></i>Care<span>Sync</span></div>
+
+    <a href="dashboard.html" class="side-link"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+    <a href="patients.html" class="side-link"><i class="fa-solid fa-user-injured"></i> Patients</a>
+    <a href="mapping.html" class="side-link"><i class="fa-solid fa-code-branch"></i> Disease Mapping</a>
+    <a href="diagnoses.html" class="side-link"><i class="fa-solid fa-stethoscope"></i> Diagnoses</a>
+    <a href="reports.html" class="side-link"><i class="fa-solid fa-chart-simple"></i> Reports</a>
+    <a href="settings.html" class="side-link active"><i class="fa-solid fa-gear"></i> Settings</a>
+
+    <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+
+    <!-- mobile top bar -->
+    <div class="mobile-topbar">
+      <div class="brand">Care<span>Sync</span></div>
+      <button><i class="fa-solid fa-bars"></i></button>
+    </div>
+
+    <!-- top bar -->
+    <div class="topbar">
+      <div class="topbar-title">
+        <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn">
+          <i class="fa-regular fa-bell"></i>
+          <span class="notif-dot"></span>
+        </button>
+        <div class="user-chip">
+          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+          <span>Dr. Sonu</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <div>
+          <h4>Settings</h4>
+          <p>Manage your profile, preferences, and account security.</p>
+        </div>
+      </div>
+
+      <div class="row g-4">
+
+        <!-- Left: settings nav -->
+        <div class="col-lg-3">
+          <div class="settings-nav">
+            <a href="#profile-section" class="settings-nav-link settings-nav-active">
+              <i class="fa-solid fa-user"></i> Profile
+            </a>
+            <a href="#security-section" class="settings-nav-link">
+              <i class="fa-solid fa-lock"></i> Security
+            </a>
+            <a href="#preferences-section" class="settings-nav-link">
+              <i class="fa-solid fa-sliders"></i> Preferences
+            </a>
+            <a href="#notifications-section" class="settings-nav-link">
+              <i class="fa-solid fa-bell"></i> Notifications
+            </a>
+          </div>
+        </div>
+
+        <!-- Right: settings content -->
+        <div class="col-lg-9">
+
+          <!-- Profile -->
+          <div class="table-card mb-4" id="profile-section">
+            <h6 class="card-heading mb-4">Profile Information</h6>
+
+            <div class="profile-photo-row">
+              <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80" alt="Dr. Sonu" class="profile-photo">
+              <div>
+                <button class="quick-action-btn quick-action-outline profile-upload-btn">
+                  <i class="fa-solid fa-camera"></i> Change Photo
+                </button>
+                <p class="profile-hint">JPG or PNG, max 2MB.</p>
+              </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+              <div class="col-md-6">
+                <label class="form-label">Full Name</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-user"></i>
+                  <input type="text" class="form-control-custom" value="Dr. Sonu">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Specialization</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-stethoscope"></i>
+                  <input type="text" class="form-control-custom" value="Ayurveda Physician">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-envelope"></i>
+                  <input type="text" class="form-control-custom" value="sonu@caresync.in">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">ABHA ID</label>
+                <div class="input-wrap">
+                  <i class="fa-solid fa-id-card"></i>
+                  <input type="text" class="form-control-custom" value="12-3456-7890-1234">
+                </div>
+              </div>
+            </div>
+
+            <button class="quick-action-btn settings-save-btn mt-4">
+              <i class="fa-solid fa-check"></i> Save Changes
+            </button>
+          </div>
+
+          <!-- Security -->
+          <div class="table-card mb-4" id="security-section">
+            <h6 class="card-heading mb-4">Security</h6>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Password</div>
+                <div class="settings-row-sub">Last changed 3 months ago</div>
+              </div>
+              <button class="settings-link-btn">Change Password</button>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">ABHA OAuth 2.0</div>
+                <div class="settings-row-sub">Linked and verified</div>
+              </div>
+              <span class="status-pill status-stable"><i class="fa-solid fa-circle-check"></i> Connected</span>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Two-Factor Authentication</div>
+                <div class="settings-row-sub">Add an extra layer of security</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Preferences -->
+          <div class="table-card mb-4" id="preferences-section">
+            <h6 class="card-heading mb-4">Preferences</h6>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Language</div>
+                <div class="settings-row-sub">Interface and search language</div>
+              </div>
+              <select class="filter-select">
+                <option>English</option>
+                <option>Hindi</option>
+                <option>Marathi</option>
+                <option>Tamil</option>
+              </select>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Default AYUSH System</div>
+                <div class="settings-row-sub">Pre-selected system when searching</div>
+              </div>
+              <select class="filter-select">
+                <option>Ayurveda</option>
+                <option>Yoga & Naturopathy</option>
+                <option>Unani</option>
+                <option>Siddha</option>
+                <option>Homeopathy</option>
+              </select>
+            </div>
+
+            <div class="settings-row settings-row-last">
+              <div>
+                <div class="settings-row-title">Dark Mode</div>
+                <div class="settings-row-sub">Switch to a low-light theme</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="table-card" id="notifications-section">
+            <h6 class="card-heading mb-4">Notifications</h6>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Allergy & Critical Alerts</div>
+                <div class="settings-row-sub">Get notified instantly for critical cases</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-title">Claim Status Updates</div>
+                <div class="settings-row-sub">Email me when a claim is approved or rejected</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="settings-row settings-row-last">
+              <div>
+                <div class="settings-row-title">Weekly Analytics Summary</div>
+                <div class="settings-row-sub">Receive a report every Monday</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
