@@ -11,6 +11,16 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  (function() {
+    try {
+      const savedTheme = localStorage.getItem('careSyncTheme');
+      const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme ? savedTheme : (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {}
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,6 +40,7 @@
 
     <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- ===== MAIN ===== -->
   <div class="main">
@@ -37,7 +48,7 @@
     <!-- mobile top bar -->
     <div class="mobile-topbar">
       <div class="brand">Care<span>Sync</span></div>
-      <button><i class="fa-solid fa-bars"></i></button>
+      <button type="button" aria-label="Toggle navigation" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
     </div>
 
     <!-- top bar -->
@@ -46,13 +57,37 @@
         <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
       </div>
       <div class="topbar-right">
-        <button class="icon-btn">
-          <i class="fa-regular fa-bell"></i>
-          <span class="notif-dot"></span>
+        <button class="icon-btn theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Switch to dark mode" title="Switch theme">
+          <i class="fa-solid fa-moon"></i>
         </button>
-        <div class="user-chip">
-          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
-          <span>Dr. Sonu</span>
+        <div class="notif-dropdown-wrap">
+          <button class="icon-btn notif-bell-btn" id="notifBellBtn" type="button" aria-label="Notifications" title="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="notif-dot d-none"></span>
+          </button>
+          <div class="notif-menu" id="notifMenu">
+            <div class="notif-header">
+              <h6>Notifications</h6>
+              <button type="button" class="mark-all-read-btn">Mark all read</button>
+            </div>
+            <ul class="notif-list">
+              <li class="p-3 text-center text-muted small"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading notifications...</li>
+            </ul>
+          </div>
+        </div>
+        <div class="user-menu-wrap">
+          <div class="user-chip" id="userChipBtn" role="button" tabindex="0" aria-label="User Profile Menu">
+            <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+            <span>Dr. Sonu</span>
+          </div>
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <div class="user-dropdown-header">
+              <div class="user-dropdown-name">Dr. Sonu</div>
+              <div class="user-dropdown-role">Ayurveda Physician</div>
+            </div>
+            <a href="settings.html" class="user-dropdown-link"><i class="fa-solid fa-gear"></i> Settings</a>
+            <a href="#" class="user-dropdown-link logout-link text-danger"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+          </div>
         </div>
       </div>
     </div>
@@ -182,6 +217,42 @@
 
       </div>
 
+</div>
+
+<!-- Diagnosis Details Modal -->
+<div class="modal fade" id="diagnosisDetailsModal" tabindex="-1" aria-labelledby="diagnosisDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content caresync-modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">DIAGNOSIS CATALOGUE</div>
+          <h5 class="modal-title" id="ddmTitle">Diagnosis Name</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="system-tag" id="ddmSystemTag">Ayurveda</span>
+          <span class="fhir-badge" id="ddmFhirBadge"><i class="fa-solid fa-check"></i> FHIR R4</span>
+        </div>
+        <p class="text-secondary mb-4" id="ddmDesc"></p>
+
+        <div class="p-3 rounded mb-4" style="background:var(--bg-secondary); border:1px solid var(--border-color);">
+          <div class="small fw-semibold text-muted mb-2">DUAL-CODED STANDARDS</div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-secondary small">NAMASTE AYUSH:</span>
+            <span class="code-pill pill-namaste" id="ddmNamc"></span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-secondary small">WHO ICD-11 TM2:</span>
+            <span class="code-pill pill-icd" id="ddmIcd"></span>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-login w-100 py-2" id="ddmOpenMappingBtn">
+          <i class="fa-solid fa-code-branch me-2"></i> Open in Disease Mapping
+        </button>
+      </div>
     </div>
   </div>
 </div>

@@ -53,7 +53,19 @@ class DiagnosisService {
     return { success: true, message: 'Diagnosis removed successfully.' };
   }
 
-  async countDiagnoses() {
+  async countDiagnoses(clinicId) {
+    if (clinicId) {
+      const Patient = require('../models/Patient');
+      return Patient.countDocuments({
+        clinicId,
+        isDeleted: false,
+        isArchived: false,
+        $or: [
+          { namasteCode: { $exists: true, $ne: '' } },
+          { diagnosisLabel: { $exists: true, $ne: '' } }
+        ]
+      });
+    }
     return Diagnosis.countDocuments();
   }
 }

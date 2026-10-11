@@ -18,4 +18,10 @@ router.get('/trend', reportController.getTrend);
 // GET /api/reports/files
 router.get('/files', reportController.getFiles);
 
+// GET /api/reports/export (Export CSV of Morbidity data)
+router.get('/export', reportController.exportMorbidity);
+
+// GET /api/reports/download/:id (Download specific report file)
+router.get('/download/:id', reportController.download);
+
 module.exports = router;

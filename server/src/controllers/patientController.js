@@ -4,9 +4,14 @@ const fhirService = require('../services/fhirService');
 class PatientController {
   async getPatients(req, res, next) {
     try {
+      const clinicId = req.user && req.user.clinicId;
+      if (!clinicId) {
+        return res.status(403).json({ detail: 'Clinic association required. Authenticated user must belong to a valid clinic.' });
+      }
+
       const { search, status, page, limit } = req.query;
       const result = await patientService.getPatients({
-        clinicId: req.user.clinicId,
+        clinicId,
         search,
         status,
         page,
@@ -20,7 +25,12 @@ class PatientController {
 
   async getPatientById(req, res, next) {
     try {
-      const patient = await patientService.getPatientById(req.params.id, req.user.clinicId);
+      const clinicId = req.user && req.user.clinicId;
+      if (!clinicId) {
+        return res.status(403).json({ detail: 'Clinic association required. Authenticated user must belong to a valid clinic.' });
+      }
+
+      const patient = await patientService.getPatientById(req.params.id, clinicId);
       res.status(200).json(patient);
     } catch (err) {
       if (err.status) {
@@ -32,6 +42,11 @@ class PatientController {
 
   async createPatient(req, res, next) {
     try {
+      const clinicId = req.user && req.user.clinicId;
+      if (!clinicId) {
+        return res.status(403).json({ detail: 'Clinic association required. Authenticated user must belong to a valid clinic.' });
+      }
+
       const patient = await patientService.createPatient(req.body, req.user);
       res.status(201).json(patient);
     } catch (err) {
@@ -44,6 +59,11 @@ class PatientController {
 
   async updatePatient(req, res, next) {
     try {
+      const clinicId = req.user && req.user.clinicId;
+      if (!clinicId) {
+        return res.status(403).json({ detail: 'Clinic association required. Authenticated user must belong to a valid clinic.' });
+      }
+
       const patient = await patientService.updatePatient(req.params.id, req.body, req.user);
       res.status(200).json(patient);
     } catch (err) {
@@ -56,6 +76,11 @@ class PatientController {
 
   async deletePatient(req, res, next) {
     try {
+      const clinicId = req.user && req.user.clinicId;
+      if (!clinicId) {
+        return res.status(403).json({ detail: 'Clinic association required. Authenticated user must belong to a valid clinic.' });
+      }
+
       const result = await patientService.deletePatient(req.params.id, req.user);
       res.status(200).json(result);
     } catch (err) {
@@ -68,7 +93,12 @@ class PatientController {
 
   async getFhirResource(req, res, next) {
     try {
-      const patient = await patientService.getPatientById(req.params.id, req.user.clinicId);
+      const clinicId = req.user && req.user.clinicId;
+      if (!clinicId) {
+        return res.status(403).json({ detail: 'Clinic association required. Authenticated user must belong to a valid clinic.' });
+      }
+
+      const patient = await patientService.getPatientById(req.params.id, clinicId);
       const condition = fhirService.buildConditionResource(patient);
       res.status(200).json(condition);
     } catch (err) {

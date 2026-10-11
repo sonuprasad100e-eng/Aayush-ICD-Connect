@@ -15,6 +15,7 @@ const mappingRoutes = require('./routes/mappingRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use('/api/mapping', mappingRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Fallback to client/index.html for any unhandled GET route that isn't /api
 app.get('*', (req, res, next) => {

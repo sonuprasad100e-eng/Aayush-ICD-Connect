@@ -11,6 +11,16 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  (function() {
+    try {
+      const savedTheme = localStorage.getItem('careSyncTheme');
+      const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme ? savedTheme : (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {}
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,6 +40,7 @@
 
     <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- ===== MAIN ===== -->
   <div class="main">
@@ -37,7 +48,7 @@
     <!-- mobile top bar -->
     <div class="mobile-topbar">
       <div class="brand">Care<span>Sync</span></div>
-      <button><i class="fa-solid fa-bars"></i></button>
+      <button type="button" aria-label="Toggle navigation" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
     </div>
 
     <!-- top bar -->
@@ -46,13 +57,37 @@
         <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
       </div>
       <div class="topbar-right">
-        <button class="icon-btn">
-          <i class="fa-regular fa-bell"></i>
-          <span class="notif-dot"></span>
+        <button class="icon-btn theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Switch to dark mode" title="Switch theme">
+          <i class="fa-solid fa-moon"></i>
         </button>
-        <div class="user-chip">
-          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
-          <span>Dr. Sonu</span>
+        <div class="notif-dropdown-wrap">
+          <button class="icon-btn notif-bell-btn" id="notifBellBtn" type="button" aria-label="Notifications" title="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="notif-dot d-none"></span>
+          </button>
+          <div class="notif-menu" id="notifMenu">
+            <div class="notif-header">
+              <h6>Notifications</h6>
+              <button type="button" class="mark-all-read-btn">Mark all read</button>
+            </div>
+            <ul class="notif-list">
+              <li class="p-3 text-center text-muted small"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading notifications...</li>
+            </ul>
+          </div>
+        </div>
+        <div class="user-menu-wrap">
+          <div class="user-chip" id="userChipBtn" role="button" tabindex="0" aria-label="User Profile Menu">
+            <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+            <span>Dr. Sonu</span>
+          </div>
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <div class="user-dropdown-header">
+              <div class="user-dropdown-name">Dr. Sonu</div>
+              <div class="user-dropdown-role">Ayurveda Physician</div>
+            </div>
+            <a href="settings.html" class="user-dropdown-link"><i class="fa-solid fa-gear"></i> Settings</a>
+            <a href="#" class="user-dropdown-link logout-link text-danger"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+          </div>
         </div>
       </div>
     </div>
@@ -187,17 +222,146 @@
 
         <!-- Pagination -->
         <div class="table-footer">
-          <span class="table-footer-text">Showing 5 of 1,245 patients</span>
-          <div class="pagination-controls">
-            <button class="page-btn"><i class="fa-solid fa-chevron-left"></i></button>
-            <button class="page-btn page-btn-active">1</button>
-            <button class="page-btn">2</button>
-            <button class="page-btn">3</button>
-            <button class="page-btn"><i class="fa-solid fa-chevron-right"></i></button>
+          <span class="table-footer-text" id="patientsFooterText">Showing 0 of 0 patients</span>
+          <div class="pagination-controls" id="patientsPaginationControls">
+            <button class="page-btn" id="prevPageBtn" title="Previous page" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></button>
+            <div class="d-inline-flex gap-1" id="paginationPages">
+              <button class="page-btn page-btn-active">1</button>
+            </div>
+            <button class="page-btn" id="nextPageBtn" title="Next page" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></button>
           </div>
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+
+<!-- Add Patient Modal -->
+<div class="modal fade" id="addPatientModal" tabindex="-1" aria-labelledby="addPatientModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addPatientModalLabel">Add Patient with Diagnosis</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addPatientForm">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Patient Full Name *</label>
+              <input type="text" class="form-control" id="patientName" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Age *</label>
+              <input type="number" class="form-control" id="patientAge" required min="0">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Status *</label>
+              <select class="form-select" id="patientStatus" required>
+                <option value="stable">Stable</option>
+                <option value="critical">Critical</option>
+                <option value="review">Under Review</option>
+              </select>
+            </div>
+          </div>
+          
+          <h6 class="mt-4 mb-3">Disease Mapping (Two-Way Lookup)</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">NAMASTE / NAMC Code *</label>
+              <input type="text" class="form-control" id="patientNamcCode" placeholder="Enter NAMC Code" required>
+              <div class="form-text">Type a NAMC code to lookup ICD-11</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">ICD-11 TM2 Code *</label>
+              <input type="text" class="form-control" id="patientIcd11Code" placeholder="Enter ICD-11 TM2 Code" required>
+              <div class="form-text">Type an ICD-11 code to lookup NAMC</div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">AYUSH Diagnosis *</label>
+            <input type="text" class="form-control" id="patientDiagnosis" readonly required>
+          </div>
+
+          <!-- Lookup result display -->
+          <div id="lookupResultBox" class="alert alert-secondary d-none mt-3">
+            <div id="lookupResultContent"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="savePatientBtn" disabled>Save Patient</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Patient Details & FHIR Modal -->
+<div class="modal fade" id="patientDetailsModal" tabindex="-1" aria-labelledby="patientDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content caresync-modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">CLINICAL PATIENT RECORD</div>
+          <h5 class="modal-title" id="patientDetailsModalLabel">Patient Details</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+          <img src="" id="pdmAvatar" class="patient-avatar" style="width:56px; height:56px; border-radius:12px;" alt="">
+          <div>
+            <h5 class="mb-0 fw-bold" id="pdmName">Patient Name</h5>
+            <div class="text-muted small">ID: <span id="pdmCode" class="fw-semibold text-primary"></span> &bull; Age: <span id="pdmAge"></span></div>
+          </div>
+          <div class="ms-auto" id="pdmStatusBadge"></div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="p-3 rounded" style="background:var(--bg-secondary); border:1px solid var(--border-color);">
+              <div class="text-muted small fw-semibold">PRIMARY AYUSH DIAGNOSIS</div>
+              <div class="fw-bold fs-6 mt-1" id="pdmDiagnosis"></div>
+              <div class="mt-2"><span class="code-pill pill-namaste" id="pdmNamc"></span></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 rounded" style="background:var(--bg-secondary); border:1px solid var(--border-color);">
+              <div class="text-muted small fw-semibold">WHO ICD-11 (TM2) DUAL CODE</div>
+              <div class="fw-bold fs-6 mt-1" id="pdmIcdLabel">Traditional Medicine Module 2</div>
+              <div class="mt-2"><span class="code-pill pill-icd" id="pdmIcd"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label fw-bold mb-0">FHIR R4 Condition Resource Preview</label>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="copyFhirBtn"><i class="fa-regular fa-copy me-1"></i>Copy JSON</button>
+          </div>
+          <pre id="pdmFhirJson" class="p-3 rounded small" style="background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border-color); max-height:200px; overflow-y:auto;"></pre>
+        </div>
+
+        <div class="p-3 rounded border" style="background:rgba(14,165,160,0.04);">
+          <h6 class="fw-bold mb-2">Update Clinical Status</h6>
+          <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" id="pdmStatusSelect" style="max-width:200px;">
+              <option value="stable">Stable</option>
+              <option value="critical">Critical</option>
+              <option value="review">Under Review</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-primary px-3" id="pdmSaveStatusBtn">Update Status</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <button type="button" class="btn btn-outline-danger btn-sm" id="pdmDeleteBtn"><i class="fa-solid fa-trash-can me-1"></i>Delete Patient</button>
+        <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
   </div>
 </div>

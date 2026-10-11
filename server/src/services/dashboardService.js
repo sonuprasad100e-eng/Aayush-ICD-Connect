@@ -31,10 +31,16 @@ class DashboardService {
       unmappedMappings
     ] = await Promise.all([
       Patient.countDocuments({ clinicId, isDeleted: false, isArchived: false }),
-      Patient.countDocuments({ clinicId, namasteCode: { $exists: true, $ne: '' }, isDeleted: false, isArchived: false }),
-      Patient.find({ clinicId, isDeleted: false, isArchived: false })
-        .sort({ createdAt: -1 })
-        .limit(3),
+      Patient.countDocuments({
+        clinicId,
+        isDeleted: false,
+        isArchived: false,
+        $or: [
+          { namasteCode: { $exists: true, $ne: '' } },
+          { diagnosisLabel: { $exists: true, $ne: '' } }
+        ]
+      }),
+      this.getRecentPatients(clinicId, 3),
       Mapping.countDocuments({ clinicId }),
       Mapping.countDocuments({ clinicId, status: { $in: ['confirmed', undefined] } }),
       Mapping.countDocuments({ clinicId, status: 'suggested' }),
@@ -59,6 +65,13 @@ class DashboardService {
       mappingRate,
       recentPatients
     };
+  }
+
+  async getRecentPatients(clinicId, limit = 3) {
+    if (!clinicId) return [];
+    return Patient.find({ clinicId, isDeleted: false, isArchived: false })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit, 10) || 3);
   }
 }
 

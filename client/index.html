@@ -11,6 +11,16 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  (function() {
+    try {
+      const savedTheme = localStorage.getItem('careSyncTheme');
+      const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme ? savedTheme : (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {}
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -39,10 +49,15 @@
 
   <!-- ===== RIGHT FORM PANEL ===== -->
   <div class="login-form-panel">
+    <button class="icon-btn theme-toggle-btn login-theme-toggle" id="themeToggleBtn" type="button" aria-label="Switch to dark mode" title="Switch theme">
+      <i class="fa-solid fa-moon"></i>
+    </button>
     <div class="login-box">
       <div class="eyebrow">Welcome</div>
       <h3>Sign in to Care Sync</h3>
       <p class="sub">Access your dual-coding dashboard and patient records.</p>
+
+      <div id="loginAlert" class="alert alert-danger d-none" role="alert"></div>
 
       <form id="loginForm">
         <label class="form-label">Email or ABHA ID</label>
@@ -63,14 +78,14 @@
             <input class="form-check-input" type="checkbox" id="remember">
             <label class="form-check-label" for="remember">Remember me</label>
           </div>
-          <a href="#">Forgot password?</a>
+          <a href="#forgot" id="forgotPasswordLink">Forgot password?</a>
         </div>
 
-        <button type="submit" class="btn-login">Sign In <i class="fa-solid fa-arrow-right ms-1"></i></button>
+        <button type="submit" class="btn-login" id="submitLoginBtn">Sign In <i class="fa-solid fa-arrow-right ms-1"></i></button>
 
         <div class="divider">or continue with</div>
 
-        <button type="button" class="btn-abha">
+        <button type="button" class="btn-abha" id="btnAbhaAuth">
           <i class="fa-solid fa-shield-heart"></i> Sign in with ABHA (OAuth 2.0)
         </button>
       </form>
@@ -238,6 +253,81 @@
             <button type="submit" class="btn-login px-4 py-2" id="submitRegisterBtn">
               Register Clinic <i class="fa-solid fa-arrow-right ms-1"></i>
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FORGOT PASSWORD MODAL ===== -->
+<div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-labelledby="forgotPasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content caresync-modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">ACCOUNT RECOVERY</div>
+          <h5 class="modal-title" id="forgotPasswordModalLabel">Reset Your Password</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-secondary small mb-3">Enter your registered email address or ABHA ID. We'll send instructions to securely reset your credentials.</p>
+        <div id="forgotPasswordAlert" class="alert d-none" role="alert"></div>
+        <form id="forgotPasswordForm">
+          <div class="mb-3">
+            <label class="form-label">Email or ABHA ID <span class="text-danger">*</span></label>
+            <div class="input-wrap">
+              <i class="fa-solid fa-envelope"></i>
+              <input type="text" class="form-control-custom" id="forgotIdentifier" placeholder="doctor@caresync.in" required>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn-login px-4 py-2" id="submitForgotBtn">Send Recovery Link</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ABHA OAUTH 2.0 MODAL ===== -->
+<div class="modal fade" id="abhaAuthModal" tabindex="-1" aria-labelledby="abhaAuthModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content caresync-modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">ABDM INTEGRATION</div>
+          <h5 class="modal-title" id="abhaAuthModalLabel"><i class="fa-solid fa-shield-heart text-danger me-2"></i>ABHA OAuth 2.0 Gateway</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="p-3 mb-3 rounded" style="background: rgba(14, 165, 160, 0.08); border: 1px solid rgba(14, 165, 160, 0.2);">
+          <div class="small fw-semibold text-teal mb-1"><i class="fa-solid fa-circle-info me-1"></i> Ayushman Bharat Digital Mission (ABDM)</div>
+          <div class="small text-secondary">Authenticate using your 14-digit National Health ID (ABHA) to access CareSync.</div>
+        </div>
+        <div id="abhaAlert" class="alert alert-danger d-none" role="alert"></div>
+        <form id="abhaAuthForm">
+          <div class="mb-3">
+            <label class="form-label">Doctor ABHA ID <span class="text-danger">*</span></label>
+            <div class="input-wrap">
+              <i class="fa-solid fa-id-card"></i>
+              <input type="text" class="form-control-custom" id="abhaIdInput" value="12-3456-7890-1234" placeholder="12-3456-7890-1234" required>
+            </div>
+            <div class="form-text small">Default demo doctor ABHA: 12-3456-7890-1234</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">ABDM Consent Mode</label>
+            <select class="form-control-custom" id="abhaConsentMode">
+              <option value="otp">HIP/HIU Direct Verification (Doctor Sandbox)</option>
+              <option value="password">Password / ABDM Gateway Token</option>
+            </select>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn-login px-4 py-2" id="submitAbhaBtn">Authenticate &amp; Sign In</button>
           </div>
         </form>
       </div>

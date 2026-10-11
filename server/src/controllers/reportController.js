@@ -37,6 +37,30 @@ class ReportController {
       next(err);
     }
   }
+
+  async download(req, res, next) {
+    try {
+      const clinicId = req.user?.clinicId;
+      const fileData = await reportService.getReportDownload(req.params.id, clinicId);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileData.filename}"`);
+      res.status(200).send(fileData.content);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async exportMorbidity(req, res, next) {
+    try {
+      const clinicId = req.user?.clinicId;
+      const fileData = await reportService.generateExportCsv(clinicId);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileData.filename}"`);
+      res.status(200).send(fileData.content);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new ReportController();

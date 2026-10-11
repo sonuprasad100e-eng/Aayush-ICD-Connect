@@ -83,6 +83,21 @@ class PatientService {
       throw { status: 403, message: 'Authenticated user must belong to a valid clinic.' };
     }
 
+    const TerminologyCrosswalk = require('../models/TerminologyCrosswalk');
+
+    // 1. Verify dual codes match an officially verified crosswalk
+    if (data.namasteCode || data.icd11Tm2Code) {
+      const isVerified = await TerminologyCrosswalk.exists({
+        namcCode: data.namasteCode,
+        icd11Tm2Code: data.icd11Tm2Code,
+        verified: true
+      });
+
+      if (!isVerified) {
+        throw { status: 400, message: 'The provided NAMASTE and ICD-11 TM2 codes do not match an officially verified terminology crosswalk.' };
+      }
+    }
+
     let patientCode = data.patientCode;
     if (!patientCode) {
       const count = await Patient.countDocuments({ clinicId: user.clinicId });
@@ -125,6 +140,23 @@ class PatientService {
     delete safeData.createdBy;
     safeData.updatedBy = user._id || user.id;
 
+    const newNamc = safeData.namasteCode !== undefined ? safeData.namasteCode : patient.namasteCode;
+    const newIcd = safeData.icd11Tm2Code !== undefined ? safeData.icd11Tm2Code : patient.icd11Tm2Code;
+
+    // Verify dual codes match an officially verified crosswalk if they are changing
+    if (newNamc !== patient.namasteCode || newIcd !== patient.icd11Tm2Code) {
+      const TerminologyCrosswalk = require('../models/TerminologyCrosswalk');
+      const isVerified = await TerminologyCrosswalk.exists({
+        namcCode: newNamc,
+        icd11Tm2Code: newIcd,
+        verified: true
+      });
+
+      if (!isVerified) {
+        throw { status: 400, message: 'The provided NAMASTE and ICD-11 TM2 codes do not match an officially verified terminology crosswalk.' };
+      }
+    }
+
     Object.assign(patient, safeData);
     await patient.save();
 
@@ -159,6 +191,19 @@ class PatientService {
   async countPatients(clinicId) {
     if (!clinicId) return 0;
     return Patient.countDocuments({ clinicId, isDeleted: false, isArchived: false });
+  }
+
+  async countDiagnoses(clinicId) {
+    if (!clinicId) return 0;
+    return Patient.countDocuments({
+      clinicId,
+      isDeleted: false,
+      isArchived: false,
+      $or: [
+        { namasteCode: { $exists: true, $ne: '' } },
+        { diagnosisLabel: { $exists: true, $ne: '' } }
+      ]
+    });
   }
 }
 

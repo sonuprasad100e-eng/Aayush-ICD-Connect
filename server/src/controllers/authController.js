@@ -45,6 +45,32 @@ class AuthController {
     }
   }
 
+  async forgotPassword(req, res, next) {
+    try {
+      const { identifier } = req.body;
+      const result = await authService.forgotPassword(identifier);
+      res.status(200).json(result);
+    } catch (err) {
+      if (err.status) {
+        return res.status(err.status).json({ detail: err.message });
+      }
+      next(err);
+    }
+  }
+
+  async abhaLogin(req, res, next) {
+    try {
+      const { abhaId } = req.body;
+      const result = await authService.abhaLogin({ abhaId });
+      res.status(200).json(result);
+    } catch (err) {
+      if (err.status) {
+        return res.status(err.status).json({ detail: err.message });
+      }
+      next(err);
+    }
+  }
+
   async logout(req, res, next) {
     try {
       res.status(200).json({ message: 'Logged out successfully.' });

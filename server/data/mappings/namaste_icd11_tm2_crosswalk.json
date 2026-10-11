@@ -1,0 +1,38 @@
+[
+  {
+    "namcCode": "",
+    "ayushTerm": "Jvara",
+    "system": "Ayurveda",
+    "icd11Tm2Code": "SP51",
+    "icd11Term": "Fever disorder (TM2)",
+    "source": "WHO ICD-11 Coding Tool",
+    "verified": true
+  },
+  {
+    "namcCode": "",
+    "ayushTerm": "Kāsaḥ",
+    "system": "Ayurveda",
+    "icd11Tm2Code": "SL41",
+    "icd11Term": "Cough disorder (TM2)",
+    "source": "WHO ICD-11 Coding Tool",
+    "verified": true
+  },
+  {
+    "namcCode": "",
+    "ayushTerm": "Pramehaḥ",
+    "system": "Ayurveda",
+    "icd11Tm2Code": "SM8D",
+    "icd11Term": "Polyuria disorder (TM2)",
+    "source": "WHO ICD-11 Coding Tool",
+    "verified": true
+  },
+  {
+    "namcCode": "",
+    "ayushTerm": "Prameha-piḍakā",
+    "system": "Ayurveda",
+    "icd11Tm2Code": "SN92",
+    "icd11Term": "Carbuncle disorder (TM2)",
+    "source": "WHO ICD-11 Coding Tool",
+    "verified": true
+  }
+]

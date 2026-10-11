@@ -11,6 +11,16 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  (function() {
+    try {
+      const savedTheme = localStorage.getItem('careSyncTheme');
+      const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme ? savedTheme : (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {}
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,6 +40,7 @@
 
     <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- ===== MAIN ===== -->
   <div class="main">
@@ -37,7 +48,7 @@
     <!-- mobile top bar -->
     <div class="mobile-topbar">
       <div class="brand">Care<span>Sync</span></div>
-      <button><i class="fa-solid fa-bars"></i></button>
+      <button type="button" aria-label="Toggle navigation" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
     </div>
 
     <!-- top bar -->
@@ -46,13 +57,37 @@
         <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
       </div>
       <div class="topbar-right">
-        <button class="icon-btn">
-          <i class="fa-regular fa-bell"></i>
-          <span class="notif-dot"></span>
+        <button class="icon-btn theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Switch to dark mode" title="Switch theme">
+          <i class="fa-solid fa-moon"></i>
         </button>
-        <div class="user-chip">
-          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
-          <span>Dr. Sonu</span>
+        <div class="notif-dropdown-wrap">
+          <button class="icon-btn notif-bell-btn" id="notifBellBtn" type="button" aria-label="Notifications" title="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="notif-dot d-none"></span>
+          </button>
+          <div class="notif-menu" id="notifMenu">
+            <div class="notif-header">
+              <h6>Notifications</h6>
+              <button type="button" class="mark-all-read-btn">Mark all read</button>
+            </div>
+            <ul class="notif-list">
+              <li class="p-3 text-center text-muted small"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading notifications...</li>
+            </ul>
+          </div>
+        </div>
+        <div class="user-menu-wrap">
+          <div class="user-chip" id="userChipBtn" role="button" tabindex="0" aria-label="User Profile Menu">
+            <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+            <span>Dr. Sonu</span>
+          </div>
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <div class="user-dropdown-header">
+              <div class="user-dropdown-name">Dr. Sonu</div>
+              <div class="user-dropdown-role">Ayurveda Physician</div>
+            </div>
+            <a href="settings.html" class="user-dropdown-link"><i class="fa-solid fa-gear"></i> Settings</a>
+            <a href="#" class="user-dropdown-link logout-link text-danger"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+          </div>
         </div>
       </div>
     </div>
@@ -62,11 +97,11 @@
       <!-- Page header -->
       <div class="page-header">
         <div>
-          <h4>Reports & Analytics</h4>
+          <h4>Reports &amp; Analytics</h4>
           <p>Real-time AYUSH morbidity insights and insurance claim performance.</p>
         </div>
-        <button class="quick-action-btn page-header-btn">
-          <i class="fa-solid fa-download"></i> Export PDF
+        <button class="quick-action-btn page-header-btn" id="exportReportBtn">
+          <i class="fa-solid fa-download"></i> Export Morbidity Data (CSV)
         </button>
       </div>
 

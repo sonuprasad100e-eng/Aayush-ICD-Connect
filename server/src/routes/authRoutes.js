@@ -27,6 +27,26 @@ router.post(
   authController.login
 );
 
+// POST /api/auth/abha-auth
+router.post(
+  '/abha-auth',
+  [
+    body('abhaId').notEmpty().withMessage('ABHA ID is required.')
+  ],
+  validate,
+  authController.abhaLogin
+);
+
+// POST /api/auth/forgot-password
+router.post(
+  '/forgot-password',
+  [
+    body('identifier').notEmpty().withMessage('Email or ABHA ID is required.')
+  ],
+  validate,
+  authController.forgotPassword
+);
+
 // GET /api/auth/me
 router.get('/me', requireAuth, authController.me);
 

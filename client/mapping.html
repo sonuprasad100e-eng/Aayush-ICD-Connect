@@ -11,6 +11,16 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  (function() {
+    try {
+      const savedTheme = localStorage.getItem('careSyncTheme');
+      const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme ? savedTheme : (systemPrefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {}
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,6 +40,7 @@
 
     <a href="index.html" class="side-link logout-link"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- ===== MAIN ===== -->
   <div class="main">
@@ -37,7 +48,7 @@
     <!-- mobile top bar -->
     <div class="mobile-topbar">
       <div class="brand">Care<span>Sync</span></div>
-      <button><i class="fa-solid fa-bars"></i></button>
+      <button type="button" aria-label="Toggle navigation" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
     </div>
 
     <!-- top bar -->
@@ -46,13 +57,37 @@
         <span class="brand-desktop"><i class="fa-solid fa-hospital me-2"></i>Care Sync</span>
       </div>
       <div class="topbar-right">
-        <button class="icon-btn">
-          <i class="fa-regular fa-bell"></i>
-          <span class="notif-dot"></span>
+        <button class="icon-btn theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Switch to dark mode" title="Switch theme">
+          <i class="fa-solid fa-moon"></i>
         </button>
-        <div class="user-chip">
-          <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
-          <span>Dr. Sonu</span>
+        <div class="notif-dropdown-wrap">
+          <button class="icon-btn notif-bell-btn" id="notifBellBtn" type="button" aria-label="Notifications" title="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="notif-dot d-none"></span>
+          </button>
+          <div class="notif-menu" id="notifMenu">
+            <div class="notif-header">
+              <h6>Notifications</h6>
+              <button type="button" class="mark-all-read-btn">Mark all read</button>
+            </div>
+            <ul class="notif-list">
+              <li class="p-3 text-center text-muted small"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading notifications...</li>
+            </ul>
+          </div>
+        </div>
+        <div class="user-menu-wrap">
+          <div class="user-chip" id="userChipBtn" role="button" tabindex="0" aria-label="User Profile Menu">
+            <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=100&q=80" alt="Dr. Sonu">
+            <span>Dr. Sonu</span>
+          </div>
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <div class="user-dropdown-header">
+              <div class="user-dropdown-name">Dr. Sonu</div>
+              <div class="user-dropdown-role">Ayurveda Physician</div>
+            </div>
+            <a href="settings.html" class="user-dropdown-link"><i class="fa-solid fa-gear"></i> Settings</a>
+            <a href="#" class="user-dropdown-link logout-link text-danger"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+          </div>
         </div>
       </div>
     </div>
@@ -65,7 +100,7 @@
           <h4>Disease Mapping</h4>
           <p>Search AYUSH terms and get instant NAMASTE ↔ ICD-11 dual coding.</p>
         </div>
-        <button class="quick-action-btn quick-action-outline page-header-btn">
+        <button class="quick-action-btn quick-action-outline page-header-btn" id="bulkUploadBtn">
           <i class="fa-solid fa-file-arrow-up"></i> Bulk Upload
         </button>
       </div>
@@ -98,10 +133,10 @@
         </div>
       </div>
 
-      <div class="row g-4">
+      <div class="row g-4 mapping-main-row">
 
         <!-- Dual coding search widget -->
-        <div class="col-lg-5">
+        <div class="col-12 col-xl-5 mapping-search-col">
           <div class="code-widget">
             <h6><i class="fa-solid fa-code-branch me-2" style="color:var(--teal);"></i>Search & Map</h6>
             <div class="code-input-wrap">
@@ -139,11 +174,11 @@
         </div>
 
         <!-- Recently mapped table -->
-        <div class="col-lg-7">
+        <div class="col-12 col-xl-7 mapping-table-col">
           <div class="table-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h6 class="card-heading">Recently Mapped Codes</h6>
-              <a href="#" class="view-all-link">View All</a>
+              <a href="#" class="view-all-link" id="viewAllMappingsBtn">View All</a>
             </div>
             <div class="table-responsive">
               <table class="table mb-0 mapping-table">
@@ -192,6 +227,113 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+<!-- Verification Modal -->
+<div class="modal fade" id="verificationModal" tabindex="-1" aria-labelledby="verificationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h5 class="modal-title" id="verificationModalLabel">Confirm Dual Code</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Read-only Evidence -->
+        <div class="mb-4 p-3 border rounded" style="background: rgba(255, 193, 7, 0.05);">
+          <div class="row g-3">
+            <div class="col-12 col-sm-6 border-sm-end pe-sm-3">
+              <label class="form-label text-muted small fw-bold mb-0">NAMC Term</label>
+              <div id="vmNamcTerm" class="mb-2 fw-medium text-break"></div>
+              <label class="form-label text-muted small fw-bold mb-0">NAMC Code</label>
+              <div id="vmNamcCode" class="fw-medium text-break"></div>
+            </div>
+            <div class="col-12 col-sm-6 ps-sm-3">
+              <label class="form-label text-muted small fw-bold mb-0">WHO TM2 Term</label>
+              <div id="vmWhoTerm" class="mb-2 fw-medium text-break"></div>
+              <label class="form-label text-muted small fw-bold mb-0">WHO Entity URI</label>
+              <div id="vmWhoUri" class="fw-medium small text-break" style="overflow-wrap: anywhere; word-break: break-all;"></div>
+            </div>
+          </div>
+          <hr class="my-2">
+          <div class="row text-muted small">
+            <div class="col-12 text-break" style="overflow-wrap: anywhere;">
+              <strong>Evidence:</strong> <span id="vmEvidence"></span> (Score: <span id="vmScore"></span>)
+            </div>
+          </div>
+        </div>
+
+        <div id="vmErrorAlert" class="alert alert-danger d-none mb-3"></div>
+        <div id="vmSuccessAlert" class="alert alert-success d-none mb-3">Dual coding verified successfully.</div>
+
+        <form id="verificationForm">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Official WHO ICD-11 TM2 Code <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="vmIcdCode" placeholder="e.g. SP51" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Relationship <span class="text-danger">*</span></label>
+            <select class="form-select" id="vmRelationship" required>
+              <option value="equivalent" selected>Equivalent</option>
+              <option value="broader">Broader</option>
+              <option value="narrower">Narrower</option>
+              <option value="related">Related</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Source</label>
+            <input type="text" class="form-control" value="WHO ICD-11 Coding Tool" disabled readonly>
+          </div>
+          <div class="form-check mt-3 mb-4">
+            <input class="form-check-input" type="checkbox" id="vmCheckbox" required>
+            <label class="form-check-label" for="vmCheckbox">
+              I have verified this mapping in the official WHO ICD-11 Coding Tool.
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 py-2" id="vmSubmitBtn">Verify & Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- All Mappings Modal -->
+<div class="modal fade" id="allMappingsModal" tabindex="-1" aria-labelledby="allMappingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content caresync-modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">TERMINOLOGY REGISTRY</div>
+          <h5 class="modal-title" id="allMappingsModalLabel">All Mapped Clinical Terminology</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="modalMappingSearchInput" placeholder="Filter mapped codes by term, NAMASTE, or ICD-11...">
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table mb-0" id="modalAllMappingsTable">
+            <thead>
+              <tr>
+                <th>AYUSH Term</th>
+                <th>NAMASTE Code</th>
+                <th>ICD-11 TM2 Code</th>
+                <th>Confidence</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5" class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading registry mappings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>

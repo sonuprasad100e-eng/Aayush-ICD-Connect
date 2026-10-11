@@ -11,81 +11,107 @@ const Clinic = require('../models/Clinic');
 async function seedDemoData() {
   console.log('[Seed] Checking existing data...');
 
-  // Ensure default clinic exists even if users already exist
-  const clinicCount = await Clinic.countDocuments();
-  if (clinicCount === 0) {
-    const doctor = (await User.findOne({ email: 'doctor@caresync.in' })) || (await User.findOne());
-    const defaultClinic = new Clinic({
+  // 1. Create or retrieve the demo CareSync clinic first
+  let clinic = await Clinic.findOne({ email: 'doctor@caresync.in' });
+  if (!clinic) {
+    clinic = await Clinic.findOne({ clinicName: 'CareSync Ayush Wellness Center' });
+  }
+  if (!clinic) {
+    clinic = await Clinic.findOne();
+  }
+
+  if (!clinic) {
+    clinic = new Clinic({
       clinicName: 'CareSync Ayush Wellness Center',
-      doctorName: doctor ? doctor.name : 'Dr. Sonu',
-      email: doctor ? doctor.email : 'doctor@caresync.in',
+      doctorName: 'Dr. Sonu',
+      email: 'doctor@caresync.in',
       phone: '+91 98765 43210',
-      abhaId: doctor ? (doctor.abhaId || '12-3456-7890-1234') : '12-3456-7890-1234',
+      abhaId: '12-3456-7890-1234',
       address: '42 Health Park, Sector 5',
       city: 'New Delhi',
       state: 'Delhi',
       pincode: '110001',
-      specialization: doctor ? doctor.specialization : 'Ayurveda Physician',
-      userId: doctor ? doctor._id : null
+      specialization: 'Ayurveda Physician'
     });
-    await defaultClinic.save();
-    if (doctor) {
-      doctor.clinicName = defaultClinic.clinicName;
-      doctor.clinicId = defaultClinic._id;
-      await doctor.save();
-    }
-    console.log('[Seed] Initial CareSync clinic seeded successfully.');
+    await clinic.save();
+    console.log('[Seed] Created default CareSync clinic.');
   }
 
-  const userCount = await User.countDocuments();
-  if (userCount > 0) {
-    console.log('[Seed] Database already contains users. Skipping demo seeding.');
-    return;
-  }
-
-  console.log('[Seed] Seeding Care Sync demo data...');
-
-  // 1. Seed Doctor Account
+  // 2. Create or retrieve demo doctor accounts and associate with clinic
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash('password123', salt);
 
-  const doctor = new User({
-    name: 'Dr. Sonu',
-    email: 'sonu@caresync.in',
-    passwordHash,
-    abhaId: '12-3456-7890-1234',
-    specialization: 'Ayurveda Physician',
-    photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80',
-    role: 'doctor',
-    twoFactorEnabled: false,
-    preferences: {
-      language: 'English',
-      defaultAyushSystem: 'Ayurveda',
-      darkMode: false
-    },
-    notificationSettings: {
-      criticalAlerts: true,
-      claimUpdates: true,
-      weeklySummary: false
-    },
-    passwordChangedAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) // 3 months ago
-  });
+  let doctor = await User.findOne({ email: 'sonu@caresync.in' });
+  if (!doctor) {
+    doctor = new User({
+      name: 'Dr. Sonu',
+      email: 'sonu@caresync.in',
+      passwordHash,
+      abhaId: '12-3456-7890-1234',
+      specialization: 'Ayurveda Physician',
+      phone: '+91 98765 43210',
+      clinicName: clinic.clinicName,
+      clinicAddress: clinic.address,
+      city: clinic.city,
+      state: clinic.state,
+      pincode: clinic.pincode,
+      clinicId: clinic._id,
+      photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80',
+      role: 'doctor',
+      twoFactorEnabled: false,
+      preferences: {
+        language: 'English',
+        defaultAyushSystem: 'Ayurveda',
+        darkMode: false
+      },
+      notificationSettings: {
+        criticalAlerts: true,
+        claimUpdates: true,
+        weeklySummary: false
+      },
+      passwordChangedAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) // 3 months ago
+    });
+    await doctor.save();
+    console.log('[Seed] Created doctor user: sonu@caresync.in');
+  } else if (!doctor.clinicId) {
+    doctor.clinicId = clinic._id;
+    doctor.clinicName = clinic.clinicName;
+    await doctor.save();
+  }
 
-  // Also support doctor@caresync.in login if used
-  const doctorAlias = new User({
-    name: 'Dr. Sonu',
-    email: 'doctor@caresync.in',
-    passwordHash,
-    abhaId: '98-7654-3210-4321',
-    specialization: 'Ayurveda Physician',
-    photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80',
-    role: 'doctor'
-  });
+  let doctorAlias = await User.findOne({ email: 'doctor@caresync.in' });
+  if (!doctorAlias) {
+    doctorAlias = new User({
+      name: 'Dr. Sonu',
+      email: 'doctor@caresync.in',
+      passwordHash,
+      abhaId: '98-7654-3210-4321',
+      specialization: 'Ayurveda Physician',
+      phone: '+91 98765 43210',
+      clinicName: clinic.clinicName,
+      clinicAddress: clinic.address,
+      city: clinic.city,
+      state: clinic.state,
+      pincode: clinic.pincode,
+      clinicId: clinic._id,
+      photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80',
+      role: 'doctor'
+    });
+    await doctorAlias.save();
+    console.log('[Seed] Created doctor alias: doctor@caresync.in');
+  } else if (!doctorAlias.clinicId) {
+    doctorAlias.clinicId = clinic._id;
+    doctorAlias.clinicName = clinic.clinicName;
+    await doctorAlias.save();
+  }
 
-  await Promise.all([doctor.save(), doctorAlias.save()]);
-  console.log('[Seed] Created doctor user: sonu@caresync.in / doctor@caresync.in (Password: password123)');
+  // Ensure clinic references primary doctor if not yet set
+  if (!clinic.userId) {
+    clinic.userId = doctor._id;
+    await clinic.save();
+  }
 
-  // 2. Seed Patients
+  // 3. Seed Patients with clinicId, createdBy, and updatedBy
   const patientsData = [
     {
       patientCode: 'P001',
@@ -97,7 +123,9 @@ async function seedDemoData() {
       icd11Tm2Code: '2A00',
       icd11BioCode: '2A00',
       status: 'critical',
-      createdBy: doctor._id
+      clinicId: clinic._id,
+      createdBy: doctor._id,
+      updatedBy: doctor._id
     },
     {
       patientCode: 'P002',
@@ -109,7 +137,9 @@ async function seedDemoData() {
       icd11Tm2Code: '5A11',
       icd11BioCode: '5A11',
       status: 'stable',
-      createdBy: doctor._id
+      clinicId: clinic._id,
+      createdBy: doctor._id,
+      updatedBy: doctor._id
     },
     {
       patientCode: 'P003',
@@ -121,7 +151,9 @@ async function seedDemoData() {
       icd11Tm2Code: 'SP70',
       icd11BioCode: '5A11',
       status: 'stable',
-      createdBy: doctor._id
+      clinicId: clinic._id,
+      createdBy: doctor._id,
+      updatedBy: doctor._id
     },
     {
       patientCode: 'P004',
@@ -133,7 +165,9 @@ async function seedDemoData() {
       icd11Tm2Code: 'SP71',
       icd11BioCode: '6C20',
       status: 'review',
-      createdBy: doctor._id
+      clinicId: clinic._id,
+      createdBy: doctor._id,
+      updatedBy: doctor._id
     },
     {
       patientCode: 'P005',
@@ -145,14 +179,42 @@ async function seedDemoData() {
       icd11Tm2Code: 'SP72',
       icd11BioCode: '6C20',
       status: 'stable',
-      createdBy: doctor._id
+      clinicId: clinic._id,
+      createdBy: doctor._id,
+      updatedBy: doctor._id
     }
   ];
 
-  await Patient.insertMany(patientsData);
-  console.log(`[Seed] Seeded ${patientsData.length} patients.`);
+  let seededPatientsCount = 0;
+  for (const patient of patientsData) {
+    const existing = await Patient.findOne({ patientCode: patient.patientCode });
+    if (!existing) {
+      await Patient.create(patient);
+      seededPatientsCount++;
+    } else {
+      let needsSave = false;
+      if (!existing.clinicId) {
+        existing.clinicId = clinic._id;
+        needsSave = true;
+      }
+      if (!existing.createdBy) {
+        existing.createdBy = doctor._id;
+        needsSave = true;
+      }
+      if (!existing.updatedBy) {
+        existing.updatedBy = doctor._id;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await existing.save();
+      }
+    }
+  }
+  if (seededPatientsCount > 0) {
+    console.log(`[Seed] Seeded ${seededPatientsCount} patients.`);
+  }
 
-  // 3. Seed Diagnoses
+  // 4. Seed Diagnoses
   const diagnosesData = [
     {
       name: 'Jwara',
@@ -216,10 +278,19 @@ async function seedDemoData() {
     }
   ];
 
-  await Diagnosis.insertMany(diagnosesData);
-  console.log(`[Seed] Seeded ${diagnosesData.length} diagnoses.`);
+  let seededDiagnosesCount = 0;
+  for (const diagnosis of diagnosesData) {
+    const existing = await Diagnosis.findOne({ namasteCode: diagnosis.namasteCode });
+    if (!existing) {
+      await Diagnosis.create(diagnosis);
+      seededDiagnosesCount++;
+    }
+  }
+  if (seededDiagnosesCount > 0) {
+    console.log(`[Seed] Seeded ${seededDiagnosesCount} diagnoses.`);
+  }
 
-  // 4. Seed Recently Mapped
+  // 5. Seed Recently Mapped
   const mappingsData = [
     {
       searchTerm: 'Jwara (Fever)',
@@ -227,7 +298,9 @@ async function seedDemoData() {
       icd11Tm2Code: 'MG26',
       icd11BioCode: 'MG26',
       confidenceScore: 98,
+      status: 'confirmed',
       confirmedBy: doctor._id,
+      clinicId: clinic._id,
       confirmedAt: new Date()
     },
     {
@@ -236,7 +309,9 @@ async function seedDemoData() {
       icd11Tm2Code: 'MD12',
       icd11BioCode: 'MD12',
       confidenceScore: 95,
+      status: 'confirmed',
       confirmedBy: doctor._id,
+      clinicId: clinic._id,
       confirmedAt: new Date(Date.now() - 3600000)
     },
     {
@@ -245,7 +320,9 @@ async function seedDemoData() {
       icd11Tm2Code: '5A11',
       icd11BioCode: '5A11',
       confidenceScore: 82,
+      status: 'confirmed',
       confirmedBy: doctor._id,
+      clinicId: clinic._id,
       confirmedAt: new Date(Date.now() - 7200000)
     },
     {
@@ -254,7 +331,9 @@ async function seedDemoData() {
       icd11Tm2Code: 'SP72',
       icd11BioCode: '6C20',
       confidenceScore: 91,
+      status: 'confirmed',
       confirmedBy: doctor._id,
+      clinicId: clinic._id,
       confirmedAt: new Date(Date.now() - 10800000)
     },
     {
@@ -263,61 +342,97 @@ async function seedDemoData() {
       icd11Tm2Code: 'SP73',
       icd11BioCode: '6C20',
       confidenceScore: 64,
+      status: 'confirmed',
       confirmedBy: doctor._id,
+      clinicId: clinic._id,
       confirmedAt: new Date(Date.now() - 14400000)
     }
   ];
 
-  await Mapping.insertMany(mappingsData);
-  console.log(`[Seed] Seeded ${mappingsData.length} mappings.`);
+  let seededMappingsCount = 0;
+  for (const mapping of mappingsData) {
+    const existing = await Mapping.findOne({
+      searchTerm: mapping.searchTerm,
+      clinicId: clinic._id
+    });
+    if (!existing) {
+      await Mapping.create(mapping);
+      seededMappingsCount++;
+    }
+  }
+  if (seededMappingsCount > 0) {
+    console.log(`[Seed] Seeded ${seededMappingsCount} mappings.`);
+  }
 
-  // 5. Seed Reports
+  // 6. Seed Reports
   const reportsData = [
     {
       name: 'Morbidity Analytics Summary',
       period: 'Aug 2026',
       generatedOn: '16 Aug 2026',
       fileUrl: '/reports/morbidity-analytics-summary-aug-2026.pdf',
-      type: 'morbidity'
+      type: 'morbidity',
+      clinicId: clinic._id,
+      createdBy: doctor._id
     },
     {
       name: 'Insurance Claims Report',
       period: 'Q2 2026',
       generatedOn: '02 Jul 2026',
       fileUrl: '/reports/insurance-claims-q2-2026.pdf',
-      type: 'claims'
+      type: 'claims',
+      clinicId: clinic._id,
+      createdBy: doctor._id
     },
     {
       name: 'NAMASTE-ICD Mapping Audit',
       period: 'Jun 2026',
       generatedOn: '30 Jun 2026',
       fileUrl: '/reports/mapping-audit-jun-2026.pdf',
-      type: 'mapping-audit'
+      type: 'mapping-audit',
+      clinicId: clinic._id,
+      createdBy: doctor._id
     }
   ];
 
-  await Report.insertMany(reportsData);
-  console.log(`[Seed] Seeded ${reportsData.length} reports.`);
-
-  // 6. Seed AnalyticsSnapshot
-  const snapshot = new AnalyticsSnapshot({
-    month: 'Aug 2026',
-    totalDiagnoses: 2856,
-    claimsApproved: 96,
-    claimsRejected: 4.2,
-    codesMappedYtd: 1024,
-    systemBreakdown: {
-      ayurveda: 75.6,
-      homeopathy: 40.0,
-      yoga: 40.0,
-      unani: 11.1,
-      siddha: 11.1
+  let seededReportsCount = 0;
+  for (const report of reportsData) {
+    const existing = await Report.findOne({
+      name: report.name,
+      clinicId: clinic._id
+    });
+    if (!existing) {
+      await Report.create(report);
+      seededReportsCount++;
     }
-  });
+  }
+  if (seededReportsCount > 0) {
+    console.log(`[Seed] Seeded ${seededReportsCount} reports.`);
+  }
 
-  await snapshot.save();
-  console.log('[Seed] Seeded analytics snapshot.');
-  console.log('[Seed] Demo data seeding complete!');
+  // 7. Seed AnalyticsSnapshot
+  const existingSnapshot = await AnalyticsSnapshot.findOne({ month: 'Aug 2026' });
+  if (!existingSnapshot) {
+    const snapshot = new AnalyticsSnapshot({
+      month: 'Aug 2026',
+      totalDiagnoses: 2856,
+      claimsApproved: 96,
+      claimsRejected: 4.2,
+      codesMappedYtd: 1024,
+      systemBreakdown: {
+        ayurveda: 75.6,
+        homeopathy: 40.0,
+        yoga: 40.0,
+        unani: 11.1,
+        siddha: 11.1
+      }
+    });
+
+    await snapshot.save();
+    console.log('[Seed] Seeded analytics snapshot.');
+  }
+
+  console.log('[Seed] Demo data check and seeding complete!');
 }
 
 // Standalone CLI execution
