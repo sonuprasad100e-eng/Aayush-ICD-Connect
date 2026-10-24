@@ -92,3 +92,116 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 });
+
+  
+  // Aayush-ICD Connect: backend integration
+  const mappingPage = document.querySelector('.mapping-table');
+
+  if (mappingPage) {
+    const API_URL = 'http://127.0.0.1:5000/api/mappings';
+    const tableBody = mappingPage.querySelector('tbody');
+    const searchInput = document.querySelector('.code-input');
+    const confirmButton = document.querySelector('.code-widget button');
+
+    async function loadMappings() {
+      try {
+        const searchTerm = searchInput ? searchInput.value.trim() : '';
+        const response = await fetch(
+          API_URL + '?search=' + encodeURIComponent(searchTerm)
+        );
+
+        if (!response.ok) {
+          throw new Error('Could not load mappings');
+        }
+
+        const mappings = await response.json();
+        tableBody.replaceChildren();
+
+        mappings.forEach((item) => {
+          const row = document.createElement('tr');
+
+          const values = [
+            item.ayush_term,
+            item.ayush_code || '—',
+            item.icd_code || '—',
+            'Unverified demo'
+          ];
+
+          values.forEach((value, index) => {
+            const cell = document.createElement('td');
+
+            if (index === 1 || index === 2) {
+              const pill = document.createElement('span');
+              pill.className = 'code-pill ' +
+                (index === 1 ? 'pill-namaste' : 'pill-icd');
+              pill.textContent = value;
+              cell.appendChild(pill);
+            } else {
+              cell.textContent = value;
+            }
+
+            row.appendChild(cell);
+          });
+
+          tableBody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Mapping API error:', error);
+      }
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', loadMappings);
+    }
+
+    if (confirmButton && searchInput) {
+      confirmButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+
+        const ayushTerm = searchInput.value.trim();
+
+        if (!ayushTerm) {
+          alert('Please enter an AYUSH term first.');
+          return;
+        }
+
+        const icdTerm = prompt('Enter the ICD-11 term for this demo:');
+        if (!icdTerm || !icdTerm.trim()) return;
+
+        const icdCode = prompt('Enter the ICD-11 code, or leave it blank:');
+        if (icdCode === null) return;
+
+        try {
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              ayush_term: ayushTerm,
+              ayush_code: '',
+              icd_term: icdTerm.trim(),
+              icd_code: icdCode.trim(),
+              source: 'Unverified demo data - not clinically validated'
+            })
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Could not save mapping');
+          }
+
+          alert('Demo mapping saved successfully!');
+          if (searchInput) searchInput.value = '';
+          await loadMappings();
+        } catch (error) {
+          console.error('Save error:', error);
+          alert('Could not save. Check that the Flask server is running.');
+        }
+      });
+    }
+
+    loadMappings();
+  }
+
