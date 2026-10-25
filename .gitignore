@@ -7,3 +7,5 @@ uploads/
 .DS_Store
 Thumbs.db
 server/.env
+node_modules/
+

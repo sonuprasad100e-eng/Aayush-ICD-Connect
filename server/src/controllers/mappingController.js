@@ -17,7 +17,7 @@ class MappingController {
   async search(req, res, next) {
     try {
       const { term } = req.query;
-      const result = await mappingService.searchAyush(term);
+      const result = await mappingService.searchTerminology(term);
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -70,8 +70,9 @@ class MappingController {
       }
 
       const userId = req.user?.id;
+      const clinicId = req.user?.clinicId;
       const result = await mappingService.verifyMappingCandidate(
-        { namcId, whoEntityUri, relationshipType },
+        { namcId, whoEntityUri, relationshipType, clinicId },
         userId
       );
 
@@ -101,8 +102,9 @@ class MappingController {
       }
 
       const userId = req.user?.id;
+      const clinicId = req.user?.clinicId;
       const result = await mappingService.verifyMappingWithOfficialCode(
-        { namcId, whoEntityUri, icd11Tm2Code, relationshipType },
+        { namcId, whoEntityUri, icd11Tm2Code, relationshipType, clinicId },
         userId
       );
 
@@ -121,7 +123,10 @@ class MappingController {
 
   async confirm(req, res, next) {
     try {
-      const mapping = await mappingService.confirmMapping(req.body, req.user?.id);
+      const mapping = await mappingService.confirmMapping(
+        { ...req.body, clinicId: req.user?.clinicId },
+        req.user?.id
+      );
       res.status(201).json(mapping);
     } catch (err) {
       next(err);
@@ -131,7 +136,8 @@ class MappingController {
   async getRecent(req, res, next) {
     try {
       const { limit } = req.query;
-      const recent = await mappingService.getRecentMappings(limit);
+      const clinicId = req.user?.clinicId;
+      const recent = await mappingService.getRecentMappings(limit, clinicId);
       res.status(200).json(recent);
     } catch (err) {
       next(err);
@@ -140,7 +146,8 @@ class MappingController {
 
   async getStats(req, res, next) {
     try {
-      const stats = await mappingService.getStats();
+      const clinicId = req.user?.clinicId;
+      const stats = await mappingService.getStats(clinicId);
       res.status(200).json(stats);
     } catch (err) {
       next(err);

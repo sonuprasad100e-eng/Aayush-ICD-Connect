@@ -109,19 +109,19 @@
       <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
           <div class="mini-stat">
-            <div class="mini-stat-num">542</div>
+            <div class="mini-stat-num">--</div>
             <div class="mini-stat-label">Mapped Codes</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="mini-stat">
-            <div class="mini-stat-num" style="color:var(--soft-red);">23</div>
+            <div class="mini-stat-num" style="color:var(--soft-red);">--</div>
             <div class="mini-stat-label">Unmapped</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="mini-stat">
-            <div class="mini-stat-num">96%</div>
+            <div class="mini-stat-num">--%</div>
             <div class="mini-stat-label">Avg. Confidence</div>
           </div>
         </div>
@@ -136,46 +136,91 @@
       <div class="row g-4 mapping-main-row">
 
         <!-- Dual coding search widget -->
-        <div class="col-12 col-xl-5 mapping-search-col">
+        <div class="col-12 col-lg-7 col-xl-7 mapping-search-col">
           <div class="code-widget">
-            <h6><i class="fa-solid fa-code-branch me-2" style="color:var(--teal);"></i>Search & Map</h6>
-            <div class="code-input-wrap">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" class="code-input" placeholder="Type AYUSH term e.g. 'Vata Dosha'" value="Vata Dosha Imbalance">
-            </div>
-            <div class="suggestion-list">
-              <div class="suggestion-item">
-                <div>
-                  <div class="term">Vata Dosha Imbalance</div>
-                  <div class="sub">Functional nervous system disorder</div>
-                </div>
-                <span class="code-pill pill-namaste">AYU-0042</span>
-              </div>
-              <div class="suggestion-item">
-                <div>
-                  <div class="term">Mapped ICD-11 (TM2)</div>
-                  <div class="sub">Functional Disorder — Traditional Medicine</div>
-                </div>
-                <span class="code-pill pill-icd">SP70</span>
-              </div>
-              <div class="suggestion-item">
-                <div>
-                  <div class="term">Biomedicine Equivalent</div>
-                  <div class="sub">Somatic symptom disorder</div>
-                </div>
-                <span class="code-pill pill-icd">6C20</span>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="mb-0"><i class="fa-solid fa-code-branch me-2" style="color:var(--teal);"></i>Dual-Code Mapping</h6>
+              <div class="btn-group btn-group-sm" role="group" id="mappingModeToggle">
+                <button type="button" class="btn btn-outline-primary active" id="modeCodeLookupBtn" title="Automatic Code Lookup">
+                  <i class="fa-solid fa-bolt me-1"></i>Code Lookup
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="modeTermSearchBtn" title="Clinical Term Search">
+                  <i class="fa-solid fa-brain me-1"></i>Term (RAG)
+                </button>
               </div>
             </div>
-            <div class="confidence-row">
-              <span class="confidence-badge confidence-high"><i class="fa-solid fa-circle-check"></i> 98% Match Confidence</span>
+
+            <!-- VIEW 1: Automatic Two-Way Code Lookup -->
+            <div id="codeLookupSection">
+              <div class="row g-2 mb-2">
+                <div class="col-7">
+                  <label class="form-label small text-muted mb-0">Enter Code</label>
+                </div>
+                <div class="col-5 text-end">
+                  <select class="form-select form-select-sm" id="codeTypeSelector" style="font-size: 0.78rem;">
+                    <option value="AUTO" selected>Auto-Detect Type</option>
+                    <option value="NAMC">NAMC / NAMASTE</option>
+                    <option value="ICD11">ICD-11 TM2</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="code-input-wrap mb-2 position-relative">
+                <i class="fa-solid fa-barcode"></i>
+                <input type="text" class="code-input" id="lookupCodeInput" placeholder="e.g. SP51, EC-3, SL41(EA-3), SM8D..." autocomplete="off">
+                <button type="button" class="btn btn-sm text-muted d-none" id="clearLookupCodeBtn" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); border:none; background:transparent;">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+
+              <!-- Quick sample badges -->
+              <div class="mb-3 d-flex flex-wrap gap-1 align-items-center">
+                <span class="small text-muted me-1">Try:</span>
+                <button type="button" class="badge bg-secondary border-0 quick-sample-badge" data-code="SP51">SP51</button>
+                <button type="button" class="badge bg-secondary border-0 quick-sample-badge" data-code="EC-3">EC-3</button>
+                <button type="button" class="badge bg-secondary border-0 quick-sample-badge" data-code="SL41(EA-3)">SL41(EA-3)</button>
+                <button type="button" class="badge bg-secondary border-0 quick-sample-badge" data-code="SM8D">SM8D</button>
+                <button type="button" class="badge bg-secondary border-0 quick-sample-badge" data-code="AYU-0205">AYU-0205</button>
+              </div>
+
+              <!-- Result Container for Code Lookup -->
+              <div id="codeLookupResultsContainer">
+                <div class="text-muted text-center p-4 border rounded" style="border-style:dashed!important;">
+                  <i class="fa-solid fa-magnifying-glass fs-3 mb-2 opacity-50"></i>
+                  <div>Enter any NAMASTE/NAMC or ICD-11 TM2 code to automatically retrieve its dual code, diagnosis, and verification details.</div>
+                </div>
+              </div>
             </div>
-            <button class="quick-action-btn w-100 mt-3"><i class="fa-solid fa-check me-1"></i> Confirm Dual Code</button>
+
+            <!-- VIEW 2: Clinical Term Search (RAG) -->
+            <div id="termSearchSection" class="d-none">
+              <label class="form-label small text-muted mb-1">Search AYUSH Diagnosis</label>
+              <div class="code-input-wrap mb-3">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" class="code-input" id="termSearchInput" placeholder="Type clinical term e.g. 'Jvara', 'Prameha'...">
+              </div>
+              <div class="suggestion-list">
+                <!-- RAG Candidates populated dynamically -->
+              </div>
+              <div class="confidence-row">
+                <!-- Confidence badge -->
+              </div>
+              <div class="mapping-action-footer mt-3" id="mappingActionFooter" style="display:none;">
+                <div class="d-flex align-items-center gap-2 overflow-hidden me-2" id="selectedCandidatePreview">
+                  <span class="badge bg-primary flex-shrink-0"><i class="fa-solid fa-check me-1"></i>Selected</span>
+                  <span class="fw-semibold text-truncate small text-dark selected-cand-text"></span>
+                </div>
+                <button class="quick-action-btn flex-shrink-0" id="confirmCandidateBtn">
+                  <i class="fa-solid fa-check me-1"></i> Verify Candidate Mapping
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Recently mapped table -->
-        <div class="col-12 col-xl-7 mapping-table-col">
-          <div class="table-card">
+        <div class="col-12 col-lg-5 col-xl-5 mapping-table-col">
+          <div class="table-card mb-3">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h6 class="card-heading">Recently Mapped Codes</h6>
               <a href="#" class="view-all-link" id="viewAllMappingsBtn">View All</a>
@@ -192,37 +237,41 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td>Jwara (Fever)</td>
-                    <td><span class="code-pill pill-namaste">AYU-0011</span></td>
-                    <td><span class="code-pill pill-icd">MG26</span></td>
-                    <td><span class="confidence-badge confidence-high">98%</span></td>
-                  </tr>
-                  <tr>
-                    <td>Kasa (Cough)</td>
-                    <td><span class="code-pill pill-namaste">AYU-0034</span></td>
-                    <td><span class="code-pill pill-icd">MD12</span></td>
-                    <td><span class="confidence-badge confidence-high">95%</span></td>
-                  </tr>
-                  <tr>
-                    <td>Prameha</td>
-                    <td><span class="code-pill pill-namaste">AYU-0042</span></td>
-                    <td><span class="code-pill pill-icd">5A11</span></td>
-                    <td><span class="confidence-badge confidence-medium">82%</span></td>
-                  </tr>
-                  <tr>
-                    <td>Pitta Excess</td>
-                    <td><span class="code-pill pill-namaste">AYU-0093</span></td>
-                    <td><span class="code-pill pill-icd">SP72</span></td>
-                    <td><span class="confidence-badge confidence-high">91%</span></td>
-                  </tr>
-                  <tr>
-                    <td>Ama (Toxin Buildup)</td>
-                    <td><span class="code-pill pill-namaste">AYU-0107</span></td>
-                    <td><span class="code-pill pill-icd">SP73</span></td>
-                    <td><span class="confidence-badge confidence-low">64%</span></td>
+                    <td colspan="4" class="text-center py-4 text-muted">
+                      <i class="fa-solid fa-spinner fa-spin me-2"></i>Loading mapped terminology records...
+                    </td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- Clinical Mapping Guidelines -->
+          <div class="card border-0 shadow-sm mapping-guidance-card" style="border-radius:16px;">
+            <div class="card-body p-3">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="mb-0 fw-bold" style="font-size:0.88rem;">
+                  <i class="fa-solid fa-book-medical me-2 text-primary"></i>Mapping Guidelines
+                </h6>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.72rem;">WHO ICD-11 TM2</span>
+              </div>
+              <p class="text-muted small mb-3" style="font-size:0.8rem;">
+                Doctor verification certifies clinical equivalence between AYUSH NAMASTE concepts and WHO ICD-11 Traditional Medicine Module 2 entities.
+              </p>
+              <div class="d-flex flex-column gap-2 small" style="font-size:0.79rem;">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="fa-solid fa-circle-check text-success mt-1"></i>
+                  <div><strong>Equivalence Certification:</strong> Confirm root pathology matches before certifying.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2">
+                  <i class="fa-solid fa-circle-check text-success mt-1"></i>
+                  <div><strong>Instant Crosswalk Sync:</strong> Verified mappings immediately sync for ABHA patient registration.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2">
+                  <i class="fa-solid fa-shield-halved text-info mt-1"></i>
+                  <div><strong>FHIR R4 Compliant:</strong> Dual codes are validated across Clinic EMR and Central Registry.</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

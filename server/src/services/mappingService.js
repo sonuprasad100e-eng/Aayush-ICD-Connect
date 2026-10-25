@@ -3,39 +3,199 @@ const Diagnosis = require('../models/Diagnosis');
 const TerminologyCrosswalk = require('../models/TerminologyCrosswalk');
 
 class MappingService {
+  /**
+   * Helper to normalize whitespace and unicode space characters (e.g. \u00A0)
+   */
+  normalizeCodeString(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/[\u00A0\u2000-\u200B\uFEFF]/g, ' ') // replace non-breaking & zero-width spaces
+      .replace(/\s+/g, ' ')                          // collapse multiple spaces
+      .trim();
+  }
+
+  /**
+   * Detects whether a code string is formatted as a NAMASTE/NAMC code or an ICD-11 TM2 code.
+   * Returns 'NAMC', 'ICD11', or 'AMBIGUOUS' if format could match either.
+   */
+  detectCodeType(code) {
+    const cleaned = this.normalizeCodeString(code);
+    if (!cleaned) return null;
+    // Parenthetical structure e.g. "SP51(EC-3)", "SR10 (AAA-2.1)", "(EC-3)"
+    if (/\([^\)]+\)/.test(cleaned)) return 'NAMC';
+    // Ayush catalog prefixes e.g. "AYU-0042", "AYU-1187", "AYU-0205"
+    if (/^AYU-/i.test(cleaned)) return 'NAMC';
+    // NAMC morbidity branch codes with hyphens e.g. "EC-3", "EF-2", "AAA-1", "EA-3", "EF-2.5"
+    if (/^[A-Z]{1,3}-[0-9]/i.test(cleaned)) return 'NAMC';
+    // Standard ICD-11 TM2 alphanumeric code pattern (Chapter 26 TM2 block S-series: e.g. SP51, SL41, SM8D, SN92, SR10)
+    if (/^S[A-Z0-9]{3}$/i.test(cleaned)) return 'ICD11';
+    return 'AMBIGUOUS';
+  }
+
+  /**
+   * Performs two-way terminology crosswalk lookup between NAMASTE/NAMC and ICD-11 TM2.
+   * Supports:
+   * - type='NAMC': search by NAMASTE/NAMC code (exact, parenthetical morbidity code, or prefix).
+   * - type='ICD11': search by ICD-11 TM2 code (alphanumeric TM2 code).
+   * - type='AUTO' or omitted: auto-detects code format or searches across both domains.
+   * - Full case-insensitivity and whitespace normalization.
+   * - Canonical and parenthetical code parsing.
+   * - Protection against confusion with biomedical codes.
+   * - Never returns unverified candidates as verified mappings.
+   */
   async lookupCrosswalk(code, codeType) {
-    if (!code || !codeType) {
-      return { found: false, message: 'Code and codeType are required' };
+    const cleaned = this.normalizeCodeString(code);
+    if (!cleaned) {
+      return { found: false, verified: false, message: 'Code parameter is required' };
     }
 
-    const trimmedCode = code.trim();
-    let query = { verified: true };
+    // Resolve code type: explicit, AUTO, or auto-detected
+    let resolvedType = (codeType || '').trim().toUpperCase();
+    if (!resolvedType || resolvedType === 'AUTO') {
+      const detected = this.detectCodeType(cleaned);
+      resolvedType = detected === 'AMBIGUOUS' ? 'ALL' : detected;
+    }
 
-    if (codeType.toUpperCase() === 'NAMC') {
-      query.namcCode = trimmedCode;
-    } else if (codeType.toUpperCase() === 'ICD11') {
-      query.icd11Tm2Code = trimmedCode;
+    if (resolvedType !== 'NAMC' && resolvedType !== 'ICD11' && resolvedType !== 'ALL') {
+      return { found: false, verified: false, message: 'Invalid codeType. Use NAMC or ICD11' };
+    }
+
+    const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const bareCode = cleaned.replace(/^\((.+)\)$/, '$1').trim();
+
+    // 1. Build NAMC search conditions
+    const namcConditions = [
+      { namcCode: new RegExp(`^${escapeRegex(cleaned)}$`, 'i') },
+      { namcCode: new RegExp(`\\(\\s*${escapeRegex(bareCode)}\\s*\\)`, 'i') },
+      { namcCode: new RegExp(`^${escapeRegex(bareCode)}\\s*\\(`, 'i') },
+      { namcCode: new RegExp(`^${escapeRegex(bareCode)}(\\s|$)`, 'i') }
+    ];
+
+    // 2. Build ICD-11 TM2 search conditions (strictly matching TM2 codes, not biomedicine)
+    const icdConditions = [
+      { icd11Tm2Code: new RegExp(`^${escapeRegex(cleaned)}$`, 'i') }
+    ];
+    // If user entered a compound like "SP51(EC-3)" in ICD search, match base TM2 code
+    const parenPrefixMatch = cleaned.match(/^([A-Z0-9]{4})\s*\(/i);
+    if (parenPrefixMatch) {
+      icdConditions.push({ icd11Tm2Code: new RegExp(`^${escapeRegex(parenPrefixMatch[1])}$`, 'i') });
+    }
+
+    // 3. Compose verified query
+    let verifiedQuery = { verified: true };
+    if (resolvedType === 'NAMC') {
+      verifiedQuery.$or = namcConditions;
+    } else if (resolvedType === 'ICD11') {
+      verifiedQuery.$or = icdConditions;
     } else {
-      return { found: false, message: 'Invalid codeType. Use NAMC or ICD11' };
+      // 'ALL' - match either
+      verifiedQuery.$or = [...namcConditions, ...icdConditions];
     }
 
-    const record = await TerminologyCrosswalk.findOne(query);
+    const verifiedRecords = await TerminologyCrosswalk.find(verifiedQuery).lean();
 
-    if (!record) {
-      return { found: false, message: 'No verified crosswalk found' };
+    if (verifiedRecords && verifiedRecords.length > 0) {
+      const primary = verifiedRecords[0];
+      const result = {
+        found: true,
+        verified: true,
+        searchedCode: cleaned,
+        searchedType: resolvedType,
+        matchCount: verifiedRecords.length,
+        namcCode: primary.namcCode,
+        ayushTerm: primary.ayushTerm,
+        system: primary.system || 'Ayurveda',
+        icd11Tm2Code: primary.icd11Tm2Code,
+        icd11Term: primary.icd11Term,
+        relationshipType: primary.relationshipType || 'equivalent',
+        source: primary.source || 'Ministry of Ayush & WHO ICD-11 TM2 Official Publication',
+        whoEntityUri: primary.whoEntityUri,
+        whoSynonyms: primary.whoSynonyms || []
+      };
+
+      if (verifiedRecords.length > 1) {
+        result.matches = verifiedRecords.map(r => ({
+          namcCode: r.namcCode,
+          ayushTerm: r.ayushTerm,
+          system: r.system || 'Ayurveda',
+          icd11Tm2Code: r.icd11Tm2Code,
+          icd11Term: r.icd11Term,
+          relationshipType: r.relationshipType || 'equivalent',
+          source: r.source,
+          verified: true
+        }));
+      }
+
+      return result;
+    }
+
+    // 4. No verified match found. Check for unverified candidates in TerminologyCrosswalk
+    let unverifiedQuery = { verified: false };
+    if (resolvedType === 'NAMC') {
+      unverifiedQuery.$or = namcConditions;
+    } else if (resolvedType === 'ICD11') {
+      unverifiedQuery.$or = icdConditions;
+    } else {
+      unverifiedQuery.$or = [...namcConditions, ...icdConditions];
+    }
+
+    const unverifiedRecord = await TerminologyCrosswalk.findOne(unverifiedQuery).lean();
+    if (unverifiedRecord) {
+      return {
+        found: false,
+        verified: false,
+        searchedCode: cleaned,
+        searchedType: resolvedType,
+        hasUnverifiedCandidate: true,
+        message: `An unverified candidate mapping exists for "${cleaned}", but it has not been officially verified by a doctor or Ministry of Ayush. Disease mappings must be officially verified in the Disease Mapping module before patient registration.`,
+        candidate: {
+          namcCode: unverifiedRecord.namcCode,
+          ayushTerm: unverifiedRecord.ayushTerm,
+          system: unverifiedRecord.system || 'Ayurveda',
+          icd11Tm2Code: unverifiedRecord.icd11Tm2Code,
+          icd11Term: unverifiedRecord.icd11Term,
+          source: unverifiedRecord.source || 'Unverified AYUSH Clinical Catalog',
+          relationshipType: unverifiedRecord.relationshipType || 'related',
+          verified: false
+        }
+      };
+    }
+
+    // 5. Query the comprehensive terminology index (covering all 2,910 NAMC records, 806 dual codes, and 1,500 WHO concepts)
+    try {
+      const terminologyIndex = require('./terminologyIndex');
+      const indexResult = terminologyIndex.lookupByCode(cleaned, resolvedType);
+      if (indexResult.found || indexResult.hasUnverifiedCandidate || indexResult.inDataset) {
+        return indexResult;
+      }
+    } catch (e) {
+      // Index fallback non-critical
     }
 
     return {
-      found: true,
-      namcCode: record.namcCode,
-      ayushTerm: record.ayushTerm,
-      system: record.system,
-      icd11Tm2Code: record.icd11Tm2Code,
-      icd11Term: record.icd11Term,
-      relationshipType: record.relationshipType,
-      source: record.source,
-      verified: record.verified
+      found: false,
+      verified: false,
+      searchedCode: cleaned,
+      searchedType: resolvedType,
+      message: `No verified crosswalk found for code "${cleaned}".`
     };
+  }
+
+  /**
+   * Search across diagnosis terms, Sanskrit transliterations, Devanagari,
+   * English terms, and WHO ICD-11 synonyms in the comprehensive terminology index.
+   */
+  searchTerminology(term, options = {}) {
+    const terminologyIndex = require('./terminologyIndex');
+    return terminologyIndex.searchByTerm(term, options);
+  }
+
+  /**
+   * Returns exact dataset counts for auditing and reporting.
+   */
+  getTerminologyStatistics() {
+    const terminologyIndex = require('./terminologyIndex');
+    return terminologyIndex.getStatistics();
   }
 
   async findMappingCandidates(queryTerm) {
@@ -108,7 +268,8 @@ class MappingService {
 
     for (const crosswalk of existingCrosswalks) {
       if (crosswalk.whoEntityUri === whoEntityUri && crosswalk.relationshipType === relationshipType) {
-        // Exact duplicate already verified, just return it
+        // Exact duplicate already verified, synchronize to legacy mapping for clinic if applicable and return
+        await this.syncToLegacyMapping(crosswalk, userId, data.clinicId);
         return crosswalk;
       }
       if (crosswalk.whoEntityUri !== whoEntityUri) {
@@ -138,6 +299,7 @@ class MappingService {
     });
 
     await verifiedMapping.save();
+    await this.syncToLegacyMapping(verifiedMapping, userId, data.clinicId);
     return verifiedMapping;
   }
 
@@ -180,7 +342,8 @@ class MappingService {
       // Is it for this exact NAMC term?
       if (crosswalk.namcId === namcId || crosswalk.namcCode === namcDoc.namcCode) {
         if (crosswalk.whoEntityUri === whoEntityUri && crosswalk.icd11Tm2Code === cleanCode && crosswalk.relationshipType === relationshipType) {
-          // Exact duplicate already verified, just return it
+          // Exact duplicate already verified, synchronize to legacy mapping for clinic if applicable and return
+          await this.syncToLegacyMapping(crosswalk, userId, data.clinicId);
           return crosswalk;
         }
         if (crosswalk.whoEntityUri !== whoEntityUri) {
@@ -220,6 +383,7 @@ class MappingService {
     });
 
     await verifiedMapping.save();
+    await this.syncToLegacyMapping(verifiedMapping, userId, data.clinicId);
     return verifiedMapping;
   }
 
@@ -289,16 +453,90 @@ class MappingService {
     };
   }
 
+  /**
+   * Synchronizes verified crosswalks into the legacy Mapping model for clinic compatibility.
+   */
+  async syncToLegacyMapping(verifiedCrosswalk, userId, clinicId) {
+    try {
+      let targetClinicId = clinicId;
+      if (!targetClinicId && userId) {
+        const User = require('../models/User');
+        const u = await User.findById(userId).select('clinicId');
+        if (u && u.clinicId) targetClinicId = u.clinicId;
+      }
+
+      if (!targetClinicId) return null;
+
+      const namc = (verifiedCrosswalk.namcCode || '').trim();
+      const icd = (verifiedCrosswalk.icd11Tm2Code || '').trim();
+      if (!namc || !icd) return null;
+
+      return await Mapping.findOneAndUpdate(
+        {
+          clinicId: targetClinicId,
+          namasteCode: namc,
+          icd11Tm2Code: icd
+        },
+        {
+          $set: {
+            searchTerm: `${verifiedCrosswalk.ayushTerm}${verifiedCrosswalk.icd11Term ? ` (${verifiedCrosswalk.icd11Term})` : ''}`,
+            namasteCode: namc,
+            icd11Tm2Code: icd,
+            icd11BioCode: '',
+            confidenceScore: typeof verifiedCrosswalk.confidenceScore === 'number' ? verifiedCrosswalk.confidenceScore : 98,
+            confirmedBy: userId || verifiedCrosswalk.verifiedBy,
+            clinicId: targetClinicId,
+            status: 'confirmed',
+            confirmedAt: verifiedCrosswalk.verifiedAt || new Date()
+          }
+        },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.warn('[MappingService] Failed to synchronize to legacy Mapping:', err.message);
+      return null;
+    }
+  }
+
   async confirmMapping(data, userId) {
-    const { searchTerm, namasteCode, icd11Tm2Code, icd11BioCode, confidenceScore } = data;
+    const { searchTerm, namasteCode, icd11Tm2Code, icd11BioCode, confidenceScore, clinicId } = data;
+
+    let targetClinicId = clinicId;
+    if (!targetClinicId && userId) {
+      const User = require('../models/User');
+      const u = await User.findById(userId).select('clinicId');
+      if (u && u.clinicId) targetClinicId = u.clinicId;
+    }
+
+    const namc = (namasteCode || 'AYU-0001').trim();
+    const icd = (icd11Tm2Code || 'SP70').trim();
+
+    const existing = await Mapping.findOne({
+      clinicId: targetClinicId || undefined,
+      namasteCode: namc,
+      icd11Tm2Code: icd
+    });
+
+    if (existing) {
+      existing.searchTerm = searchTerm || existing.searchTerm;
+      existing.icd11BioCode = icd11BioCode !== undefined ? icd11BioCode : existing.icd11BioCode;
+      existing.confidenceScore = confidenceScore || existing.confidenceScore;
+      existing.status = 'confirmed';
+      existing.confirmedBy = userId || existing.confirmedBy;
+      existing.confirmedAt = new Date();
+      await existing.save();
+      return existing;
+    }
 
     const mapping = new Mapping({
       searchTerm: searchTerm || 'AYUSH Diagnosis',
-      namasteCode: namasteCode || 'AYU-0001',
-      icd11Tm2Code: icd11Tm2Code || 'SP70',
+      namasteCode: namc,
+      icd11Tm2Code: icd,
       icd11BioCode: icd11BioCode || '',
       confidenceScore: confidenceScore || 95,
       confirmedBy: userId,
+      clinicId: targetClinicId,
+      status: 'confirmed',
       confirmedAt: new Date()
     });
 
@@ -306,22 +544,157 @@ class MappingService {
     return mapping;
   }
 
-  async getRecentMappings(limit = 10) {
+  async getRecentMappings(limit = 10, clinicId = null) {
     const count = parseInt(limit, 10) || 10;
-    return Mapping.find()
+
+    // 1. Authoritative verified crosswalks
+    const verifiedCrosswalks = await TerminologyCrosswalk.find({ verified: true })
+      .sort({ verifiedAt: -1, createdAt: -1 })
+      .lean();
+
+    // 2. Clinic/legacy mappings
+    const mappingQuery = clinicId ? { clinicId } : {};
+    const legacyMappings = await Mapping.find(mappingQuery)
       .sort({ confirmedAt: -1, createdAt: -1 })
-      .limit(count);
+      .lean();
+
+    const seen = new Set();
+    const combined = [];
+
+    // Add authoritative verified records first
+    for (const cw of verifiedCrosswalks) {
+      const namc = (cw.namcCode || '').trim();
+      const icd = (cw.icd11Tm2Code || '').trim();
+      if (!namc && !icd) continue;
+
+      const key = `${namc}|${icd}`.toUpperCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push({
+          id: cw._id.toString(),
+          _id: cw._id,
+          searchTerm: `${cw.ayushTerm}${cw.icd11Term ? ` (${cw.icd11Term})` : ''}`,
+          ayushTerm: cw.ayushTerm,
+          icd11Term: cw.icd11Term,
+          namasteCode: namc,
+          namcCode: namc,
+          icd11Tm2Code: icd,
+          confidenceScore: typeof cw.confidenceScore === 'number' ? cw.confidenceScore : 98,
+          status: 'confirmed',
+          verified: true,
+          verificationMethod: cw.verificationMethod || 'official_crosswalk',
+          relationshipType: cw.relationshipType || 'equivalent',
+          source: cw.source,
+          system: cw.system,
+          confirmedBy: cw.verifiedBy,
+          verifiedBy: cw.verifiedBy,
+          confirmedAt: cw.verifiedAt || cw.createdAt || new Date(),
+          verifiedAt: cw.verifiedAt || cw.createdAt || new Date(),
+          createdAt: cw.createdAt || new Date()
+        });
+      }
+    }
+
+    // Add legacy mappings if not already in combined (prevents double-counting)
+    for (const m of legacyMappings) {
+      const namc = (m.namasteCode || '').trim();
+      const icd = (m.icd11Tm2Code || '').trim();
+      if (!namc && !icd) continue;
+
+      const key = `${namc}|${icd}`.toUpperCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        combined.push({
+          id: m._id.toString(),
+          _id: m._id,
+          searchTerm: m.searchTerm,
+          namasteCode: namc,
+          namcCode: namc,
+          icd11Tm2Code: icd,
+          confidenceScore: typeof m.confidenceScore === 'number' ? m.confidenceScore : 90,
+          status: m.status || 'confirmed',
+          verified: m.status === 'confirmed',
+          confirmedBy: m.confirmedBy,
+          clinicId: m.clinicId,
+          confirmedAt: m.confirmedAt || m.createdAt || new Date(),
+          createdAt: m.createdAt || new Date()
+        });
+      }
+    }
+
+    // Sort by confirmedAt descending
+    combined.sort((a, b) => new Date(b.confirmedAt) - new Date(a.confirmedAt));
+
+    return combined.slice(0, count);
   }
 
-  async getStats() {
-    const mappingCount = await Mapping.countDocuments();
-    const mapped = 542 + mappingCount;
-    const unmapped = 23;
-    const avgConfidence = 96;
+  async getStats(clinicId = null) {
+    const verifiedCrosswalks = await TerminologyCrosswalk.find({ verified: true }).lean();
+    const mappingQuery = clinicId ? { clinicId } : {};
+    const legacyMappings = await Mapping.find(mappingQuery).lean();
+
+    const seen = new Set();
+    let totalConfidence = 0;
+    let confidenceCount = 0;
+
+    for (const cw of verifiedCrosswalks) {
+      const namc = (cw.namcCode || '').trim();
+      const icd = (cw.icd11Tm2Code || '').trim();
+      if (!namc && !icd) continue;
+
+      const key = `${namc}|${icd}`.toUpperCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        totalConfidence += (typeof cw.confidenceScore === 'number' ? cw.confidenceScore : 98);
+        confidenceCount++;
+      }
+    }
+
+    const unmappedSet = new Set();
+
+    // Check unverified candidates in crosswalks
+    const unverifiedCrosswalks = await TerminologyCrosswalk.find({ verified: false }).lean();
+    for (const uc of unverifiedCrosswalks) {
+      const namc = (uc.namcCode || '').trim();
+      const icd = (uc.icd11Tm2Code || '').trim();
+      if (!namc && !icd) continue;
+
+      const key = `${namc}|${icd}`.toUpperCase();
+      if (!seen.has(key)) {
+        unmappedSet.add(key);
+      }
+    }
+
+    // Check legacy mappings
+    for (const m of legacyMappings) {
+      const namc = (m.namasteCode || '').trim();
+      const icd = (m.icd11Tm2Code || '').trim();
+      if (!namc && !icd) continue;
+
+      const key = `${namc}|${icd}`.toUpperCase();
+      if (m.status === 'confirmed') {
+        if (!seen.has(key)) {
+          seen.add(key);
+          totalConfidence += (typeof m.confidenceScore === 'number' ? m.confidenceScore : 90);
+          confidenceCount++;
+        }
+      } else if (m.status === 'unmapped' || m.status === 'suggested') {
+        if (!seen.has(key)) {
+          unmappedSet.add(key);
+        }
+      }
+    }
+
+    const mappedCount = seen.size;
+    const unmappedCount = unmappedSet.size;
+    const avgConfidence = confidenceCount > 0 ? Math.round(totalConfidence / confidenceCount) : 0;
 
     return {
-      mappedCount: mapped,
-      unmappedCount: unmapped,
+      mappedCount,
+      unmappedCount,
+      totalMappings: mappedCount + unmappedCount,
+      confirmedMappings: mappedCount,
+      pendingCount: unmappedCount,
       avgConfidence,
       fhirCompliance: 'FHIR R4'
     };

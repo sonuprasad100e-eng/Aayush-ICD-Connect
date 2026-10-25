@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Patient = require('../models/Patient');
+const Counter = require('../models/Counter');
 const auditService = require('./auditService');
 
 class PatientService {
@@ -78,6 +79,69 @@ class PatientService {
     return patient;
   }
 
+  /**
+   * Scans existing patient records to find the highest numerical suffix in P-style patientCodes (e.g. P001, P050 -> 50).
+   * Returns 0 if no P-style records exist.
+   */
+  async getHighestExistingPatientNumber() {
+    const patients = await Patient.find(
+      { patientCode: /^P\d+$/i },
+      { patientCode: 1 }
+    ).lean();
+
+    let maxNum = 0;
+    for (const p of patients) {
+      const match = p.patientCode.match(/^P(\d+)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+    return maxNum;
+  }
+
+  /**
+   * Concurrency-safe atomic generation of the next unique patientCode.
+   * Uses an atomic MongoDB Counter collection ($inc).
+   * Ensures counter is initialized safely to at least the highest existing patient number.
+   * If a candidate patientCode already exists in Patient collection, advances until an available code is found.
+   */
+  async generateNextPatientCode() {
+    // 1. Ensure counter document exists and is synchronized with any existing patient records
+    const existingCounter = await Counter.findById('patientCode');
+    if (!existingCounter) {
+      const highestExisting = await this.getHighestExistingPatientNumber();
+      await Counter.findOneAndUpdate(
+        { _id: 'patientCode' },
+        { $max: { seq: highestExisting } },
+        { upsert: true, new: true }
+      );
+    }
+
+    // 2. Atomically increment the sequence
+    let counterDoc = await Counter.findByIdAndUpdate(
+      'patientCode',
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+
+    let candidateCode = `P${String(counterDoc.seq).padStart(3, '0')}`;
+
+    // 3. Ensure candidate is not already present in Patient collection (e.g., out-of-band inserts)
+    while (await Patient.exists({ patientCode: candidateCode })) {
+      counterDoc = await Counter.findByIdAndUpdate(
+        'patientCode',
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      candidateCode = `P${String(counterDoc.seq).padStart(3, '0')}`;
+    }
+
+    return candidateCode;
+  }
+
   async createPatient(data, user) {
     if (!user || !user.clinicId) {
       throw { status: 403, message: 'Authenticated user must belong to a valid clinic.' };
@@ -87,49 +151,118 @@ class PatientService {
 
     // 1. Verify dual codes match an officially verified crosswalk
     if (data.namasteCode || data.icd11Tm2Code) {
-      const isVerified = await TerminologyCrosswalk.exists({
-        namcCode: data.namasteCode,
-        icd11Tm2Code: data.icd11Tm2Code,
+      const namcVal = (data.namasteCode || '').trim();
+      const icdVal = (data.icd11Tm2Code || '').trim();
+      const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      let isVerified = await TerminologyCrosswalk.exists({
+        $or: [
+          { namcCode: namcVal },
+          { namcCode: new RegExp(`\\(${escapeRegex(namcVal)}\\)`, 'i') },
+          { namcCode: new RegExp(`^${escapeRegex(namcVal)}\\(`, 'i') }
+        ],
+        icd11Tm2Code: new RegExp(`^${escapeRegex(icdVal)}$`, 'i'),
         verified: true
       });
 
+      // If not yet in MongoDB collection, verify against authoritative terminology index
       if (!isVerified) {
-        throw { status: 400, message: 'The provided NAMASTE and ICD-11 TM2 codes do not match an officially verified terminology crosswalk.' };
+        try {
+          const terminologyIndex = require('./terminologyIndex');
+          const lookup = terminologyIndex.lookupByCode(namcVal, 'NAMC');
+          if (lookup && lookup.found && lookup.verified) {
+            const matchesIcd = (lookup.icd11Tm2Code || '').toUpperCase() === icdVal.toUpperCase() ||
+              (lookup.matches && lookup.matches.some(m => (m.icd11Tm2Code || '').toUpperCase() === icdVal.toUpperCase()));
+            if (matchesIcd) {
+              isVerified = true;
+            }
+          }
+        } catch (e) {
+          // ignore index error
+        }
+      }
+
+      if (!isVerified) {
+        throw {
+          status: 400,
+          message: `The provided NAMASTE (${data.namasteCode}) and ICD-11 TM2 (${data.icd11Tm2Code}) codes do not match an officially verified terminology crosswalk. A doctor must first verify this disease mapping in the Disease Mapping module before patient registration.`
+        };
       }
     }
 
-    let patientCode = data.patientCode;
-    if (!patientCode) {
-      const count = await Patient.countDocuments({ clinicId: user.clinicId });
-      patientCode = `P${String(count + 1).padStart(3, '0')}`;
-    }
-
-    // Never trust frontend for clinicId, createdBy, or updatedBy
+    // 2. Prepare sanitized patient data
     const safeData = { ...data };
     delete safeData.clinicId;
     delete safeData.createdBy;
     delete safeData.updatedBy;
+    delete safeData.patientCode; // Always manage patientCode explicitly
 
-    const patient = new Patient({
-      ...safeData,
-      patientCode,
-      clinicId: user.clinicId,
-      createdBy: user._id || user.id,
-      updatedBy: user._id || user.id
-    });
+    const isCustomCode = Boolean(data.patientCode && data.patientCode.trim());
+    if (isCustomCode) {
+      const customCode = data.patientCode.trim();
+      const existing = await Patient.exists({ patientCode: customCode });
+      if (existing) {
+        throw {
+          status: 409,
+          message: `A patient with code "${customCode}" already exists. Patient codes must be unique.`
+        };
+      }
+    }
 
-    await patient.save();
+    // 3. Concurrency-safe creation with duplicate key handling
+    let savedPatient = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (!savedPatient && attempts < maxAttempts) {
+      attempts++;
+      const patientCode = isCustomCode
+        ? data.patientCode.trim()
+        : await this.generateNextPatientCode();
+
+      const patient = new Patient({
+        ...safeData,
+        patientCode,
+        clinicId: user.clinicId,
+        createdBy: user._id || user.id,
+        updatedBy: user._id || user.id
+      });
+
+      try {
+        await patient.save();
+        savedPatient = patient;
+      } catch (err) {
+        // Handle MongoDB E11000 duplicate key error
+        if (err.code === 11000 && err.keyPattern && err.keyPattern.patientCode) {
+          if (isCustomCode) {
+            throw {
+              status: 409,
+              message: `A patient with code "${data.patientCode.trim()}" already exists. Patient codes must be unique.`
+            };
+          }
+          console.warn(`[patientService] Auto-generated code "${patientCode}" collided on attempt ${attempts}. Retrying...`);
+          if (attempts >= maxAttempts) {
+            throw {
+              status: 409,
+              message: `Unable to allocate a unique patient code after ${maxAttempts} attempts due to high concurrency. Please try again.`
+            };
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
 
     await auditService.log({
       userId: user._id || user.id,
       clinicId: user.clinicId,
       action: 'CREATE_PATIENT',
       entityType: 'Patient',
-      entityId: patient._id.toString(),
-      details: { patientCode: patient.patientCode, name: patient.name }
+      entityId: savedPatient._id.toString(),
+      details: { patientCode: savedPatient.patientCode, name: savedPatient.name }
     });
 
-    return patient;
+    return savedPatient;
   }
 
   async updatePatient(id, data, user) {
@@ -138,6 +271,7 @@ class PatientService {
     const safeData = { ...data };
     delete safeData.clinicId;
     delete safeData.createdBy;
+    delete safeData.patientCode; // patientCode is immutable via update
     safeData.updatedBy = user._id || user.id;
 
     const newNamc = safeData.namasteCode !== undefined ? safeData.namasteCode : patient.namasteCode;
@@ -146,14 +280,25 @@ class PatientService {
     // Verify dual codes match an officially verified crosswalk if they are changing
     if (newNamc !== patient.namasteCode || newIcd !== patient.icd11Tm2Code) {
       const TerminologyCrosswalk = require('../models/TerminologyCrosswalk');
+      const namcVal = (newNamc || '').trim();
+      const icdVal = (newIcd || '').trim();
+      const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
       const isVerified = await TerminologyCrosswalk.exists({
-        namcCode: newNamc,
-        icd11Tm2Code: newIcd,
+        $or: [
+          { namcCode: namcVal },
+          { namcCode: new RegExp(`\\(${escapeRegex(namcVal)}\\)`, 'i') },
+          { namcCode: new RegExp(`^${escapeRegex(namcVal)}\\(`, 'i') }
+        ],
+        icd11Tm2Code: new RegExp(`^${escapeRegex(icdVal)}$`, 'i'),
         verified: true
       });
 
       if (!isVerified) {
-        throw { status: 400, message: 'The provided NAMASTE and ICD-11 TM2 codes do not match an officially verified terminology crosswalk.' };
+        throw {
+          status: 400,
+          message: `The provided NAMASTE (${newNamc}) and ICD-11 TM2 (${newIcd}) codes do not match an officially verified terminology crosswalk. A doctor must first verify this disease mapping in the Disease Mapping module before patient registration.`
+        };
       }
     }
 

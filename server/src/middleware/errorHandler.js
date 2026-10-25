@@ -11,7 +11,17 @@ const errorHandler = (err, req, res, next) => {
 
   // Handle custom validation or input errors
   if (err.status) {
-    return res.status(err.status).json({ detail: err.message });
+    return res.status(err.status).json({ detail: err.message, message: err.message });
+  }
+
+  // Handle MongoDB duplicate key errors (E11000)
+  if (err.code === 11000) {
+    const field = err.keyPattern ? Object.keys(err.keyPattern)[0] : 'field';
+    return res.status(409).json({
+      detail: `Duplicate entry: A record with this ${field} already exists.`,
+      message: `Duplicate entry: A record with this ${field} already exists.`,
+      field
+    });
   }
 
   res.status(500).json({

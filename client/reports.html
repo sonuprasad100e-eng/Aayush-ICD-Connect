@@ -98,7 +98,7 @@
       <div class="page-header">
         <div>
           <h4>Reports &amp; Analytics</h4>
-          <p>Real-time AYUSH morbidity insights and insurance claim performance.</p>
+          <p>Trustworthy AYUSH morbidity insights, verified terminology crosswalks, and clinical analytics.</p>
         </div>
         <button class="quick-action-btn page-header-btn" id="exportReportBtn">
           <i class="fa-solid fa-download"></i> Export Morbidity Data (CSV)
@@ -109,26 +109,30 @@
       <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
           <div class="mini-stat">
-            <div class="mini-stat-num">2,856</div>
-            <div class="mini-stat-label">Total Diagnoses</div>
+            <div class="mini-stat-num" id="statCatalogueDiagnoses">2,910</div>
+            <div class="mini-stat-label">Catalogue Diagnoses</div>
+            <div class="text-muted mt-1" style="font-size:0.75rem;">Approved NAMC Concepts</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="mini-stat">
-            <div class="mini-stat-num" style="color:var(--soft-green);">96%</div>
-            <div class="mini-stat-label">Claims Approved</div>
+            <div class="mini-stat-num" id="statClinicalCases" style="color:var(--teal);">--</div>
+            <div class="mini-stat-label">Registered Clinical Cases</div>
+            <div class="text-muted mt-1" style="font-size:0.75rem;" id="statUniqueConceptsSub">Active Clinic Records</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="mini-stat">
-            <div class="mini-stat-num">4.2%</div>
-            <div class="mini-stat-label">Claims Rejected</div>
+            <div class="mini-stat-num" id="statCodesMapped">--</div>
+            <div class="mini-stat-label">Verified Crosswalks</div>
+            <div class="text-muted mt-1" style="font-size:0.75rem;">NAMASTE &harr; ICD-11 TM2</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="mini-stat">
-            <div class="mini-stat-num">1,024</div>
-            <div class="mini-stat-label">Codes Mapped (YTD)</div>
+            <div class="mini-stat-num text-muted" id="statClaimsApproved" style="font-size:1.25rem; font-weight:700;">No Data</div>
+            <div class="mini-stat-label">Insurance Claims</div>
+            <div class="mt-1" style="font-size:0.75rem;"><span class="badge bg-light text-muted border">Gateway Pending</span></div>
           </div>
         </div>
       </div>
@@ -138,54 +142,34 @@
         <!-- AYUSH system distribution (bar chart) -->
         <div class="col-lg-7">
           <div class="table-card h-100">
-            <h6 class="card-heading mb-4">Diagnoses by AYUSH System</h6>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="card-heading mb-0">Diagnoses by AYUSH System</h6>
+              <span class="badge" id="systemBasisBadge" style="background:rgba(13,148,136,0.1); color:var(--teal); border:1px solid rgba(13,148,136,0.2); font-size:0.75rem;">Clinical Cases</span>
+            </div>
 
-            <div class="bar-chart">
-              <div class="bar-row">
-                <span class="bar-label">Ayurveda</span>
-                <div class="bar-track"><div class="bar-fill" style="width:75%; background:var(--teal);"></div></div>
-                <span class="bar-value">75.6%</span>
-              </div>
-              <div class="bar-row">
-                <span class="bar-label">Homeopathy</span>
-                <div class="bar-track"><div class="bar-fill" style="width:40%; background:var(--navy);"></div></div>
-                <span class="bar-value">40%</span>
-              </div>
-              <div class="bar-row">
-                <span class="bar-label">Yoga & Naturopathy</span>
-                <div class="bar-track"><div class="bar-fill" style="width:40%; background:var(--soft-green);"></div></div>
-                <span class="bar-value">40%</span>
-              </div>
-              <div class="bar-row">
-                <span class="bar-label">Unani</span>
-                <div class="bar-track"><div class="bar-fill" style="width:11%; background:#B8860B;"></div></div>
-                <span class="bar-value">11.1%</span>
-              </div>
-              <div class="bar-row">
-                <span class="bar-label">Siddha</span>
-                <div class="bar-track"><div class="bar-fill" style="width:11%; background:var(--soft-red);"></div></div>
-                <span class="bar-value">11.1%</span>
-              </div>
+            <div class="bar-chart" id="systemBarChart">
+              <div class="text-center py-4 text-muted small"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading system distribution...</div>
             </div>
           </div>
         </div>
 
-        <!-- Claims donut -->
+        <!-- Claims card -->
         <div class="col-lg-5">
-          <div class="table-card h-100 text-center">
+          <div class="table-card h-100 text-center" id="claimsCardContainer">
             <h6 class="card-heading mb-4">Insurance Claims Status</h6>
 
-            <div class="donut-chart">
-              <div class="donut-ring"></div>
-              <div class="donut-center">
-                <div class="donut-num">96%</div>
-                <div class="donut-label">Approved</div>
+            <div id="claimsContent">
+              <div class="empty-claims-state py-3 px-2">
+                <i class="fa-solid fa-file-invoice-dollar mb-3 text-muted" style="font-size:2.8rem; opacity:0.4;"></i>
+                <h6 class="fw-semibold text-secondary mb-2" style="font-size:0.95rem;">No Claims Data Available</h6>
+                <p class="text-muted small mb-3" style="max-width:300px; margin:0 auto; line-height:1.45;">
+                  ABHA / NHCX gateway is not integrated. No claim submissions or adjudication records currently exist for this clinic.
+                </p>
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background:rgba(13,148,136,0.08); border:1px solid rgba(13,148,136,0.2); font-size:0.75rem; color:var(--teal);">
+                  <i class="fa-solid fa-circle-check"></i>
+                  <span>Dual-coded EHR ready for claims integration</span>
+                </div>
               </div>
-            </div>
-
-            <div class="donut-legend">
-              <span><span class="dot dot-mapped"></span> Approved: 96%</span>
-              <span><span class="dot dot-unmapped"></span> Rejected: 4%</span>
             </div>
           </div>
         </div>
@@ -194,43 +178,37 @@
 
       <!-- Monthly trend -->
       <div class="table-card mb-4">
-        <h6 class="card-heading mb-4">Monthly Dual-Coding Volume</h6>
-        <div class="trend-chart">
-          <div class="trend-col"><div class="trend-bar" style="height:40%;"></div><span>Mar</span></div>
-          <div class="trend-col"><div class="trend-bar" style="height:55%;"></div><span>Apr</span></div>
-          <div class="trend-col"><div class="trend-bar" style="height:48%;"></div><span>May</span></div>
-          <div class="trend-col"><div class="trend-bar" style="height:70%;"></div><span>Jun</span></div>
-          <div class="trend-col"><div class="trend-bar" style="height:65%;"></div><span>Jul</span></div>
-          <div class="trend-col"><div class="trend-bar" style="height:88%;"></div><span>Aug</span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="card-heading mb-0">Monthly Dual-Coding Volume</h6>
+          <span class="text-muted small" style="font-size:0.75rem;"><i class="fa-solid fa-circle-info me-1"></i>Newly confirmed dual-coding mappings</span>
+        </div>
+        <div class="trend-chart" id="trendChartContainer">
+          <div class="text-center py-4 text-muted small w-100"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading monthly volume...</div>
         </div>
       </div>
 
       <!-- Downloadable reports table -->
       <div class="table-card">
-        <h6 class="card-heading mb-3">Available Reports</h6>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h6 class="card-heading mb-1">Available Reports</h6>
+            <p class="text-muted small mb-0">Verified clinical datasets and dual-coding audit logs ready for download.</p>
+          </div>
+        </div>
         <div class="table-responsive">
-          <table class="table mb-0">
+          <table class="table mb-0 align-middle">
             <thead>
-              <tr><th>Report Name</th><th>Period</th><th>Generated On</th><th class="text-end">Download</th></tr>
+              <tr>
+                <th>Report Name</th>
+                <th>Reporting Period</th>
+                <th>Generated On</th>
+                <th>Format</th>
+                <th class="text-end">Download</th>
+              </tr>
             </thead>
-            <tbody>
+            <tbody id="availableReportsTableBody">
               <tr>
-                <td>Morbidity Analytics Summary</td>
-                <td>Aug 2026</td>
-                <td>16 Aug 2026</td>
-                <td class="text-end"><a href="#" class="view-link"><i class="fa-solid fa-download me-1"></i>PDF</a></td>
-              </tr>
-              <tr>
-                <td>Insurance Claims Report</td>
-                <td>Q2 2026</td>
-                <td>02 Jul 2026</td>
-                <td class="text-end"><a href="#" class="view-link"><i class="fa-solid fa-download me-1"></i>PDF</a></td>
-              </tr>
-              <tr>
-                <td>NAMASTE-ICD Mapping Audit</td>
-                <td>Jun 2026</td>
-                <td>30 Jun 2026</td>
-                <td class="text-end"><a href="#" class="view-link"><i class="fa-solid fa-download me-1"></i>PDF</a></td>
+                <td colspan="5" class="text-center py-3 text-muted small"><i class="fa-solid fa-spinner fa-spin me-2"></i>Loading available reports...</td>
               </tr>
             </tbody>
           </table>

@@ -5,15 +5,51 @@ const User = require('./src/models/User');
 const TerminologyCrosswalk = require('./src/models/TerminologyCrosswalk');
 const { getBM25Instance } = require('./src/rag/retrieval/bm25');
 
-const API_BASE = 'http://localhost:8000/api/mapping';
+let API_BASE = '';
+let testServer = null;
+let mongoMemoryServer = null;
 let doctorToken = '';
 let staffToken = '';
 let doctorUser = null;
 
-async function setup() {
-  await mongoose.connect(process.env.MONGODB_URI);
-  console.log('[TEST] Connected to MongoDB');
+/**
+ * Strict safeguard preventing tests from running against remote, Atlas, or production databases.
+ */
+function assertSafeTestEnvironment(uri) {
+  if (!uri) return;
+  const lower = uri.toLowerCase();
+  const dangerousPatterns = ['mongodb.net', 'mongodb+srv', 'atlas', 'prod', 'live', 'cluster'];
+  const isDangerous = dangerousPatterns.some(pattern => lower.includes(pattern));
+  const isProduction = process.env.NODE_ENV === 'production';
 
+  if (isDangerous || isProduction) {
+    const sanitized = uri.replace(/:[^:]*@/, ':****@');
+    throw new Error(`[SAFETY BLOCKED] Refusing to run destructive tests against remote or production database: ${sanitized}. Tests must run against MongoMemoryServer or an isolated local test instance.`);
+  }
+}
+
+async function setup() {
+  const { MongoMemoryServer } = require('mongodb-memory-server');
+  const app = require('./src/app');
+
+  // 1. Determine connection URI with strict safety check
+  let connectionUri;
+  if (process.env.TEST_MONGODB_URI) {
+    assertSafeTestEnvironment(process.env.TEST_MONGODB_URI);
+    connectionUri = process.env.TEST_MONGODB_URI;
+    console.log('[TEST] Using explicitly configured isolated local TEST_MONGODB_URI');
+  } else {
+    // Default: Spawn dedicated isolated in-memory MongoDB
+    mongoMemoryServer = await MongoMemoryServer.create();
+    connectionUri = mongoMemoryServer.getUri();
+    console.log('[TEST] Spun up isolated MongoDB In-Memory Server for safe testing');
+  }
+
+  assertSafeTestEnvironment(connectionUri);
+  await mongoose.connect(connectionUri);
+  console.log('[TEST] Connected to isolated test database');
+
+  // Safe to clean fixtures in isolated test DB
   await TerminologyCrosswalk.deleteMany({});
   
   doctorUser = new User({
@@ -24,7 +60,7 @@ async function setup() {
     isActive: true
   });
   await doctorUser.save();
-  doctorToken = jwt.sign({ id: doctorUser._id, role: 'doctor' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  doctorToken = jwt.sign({ id: doctorUser._id, role: 'doctor' }, process.env.JWT_SECRET || 'care_sync_super_secret_jwt_key_2026', { expiresIn: '1h' });
 
   const staffUser = new User({
     name: 'Test Staff 2',
@@ -34,17 +70,33 @@ async function setup() {
     isActive: true
   });
   await staffUser.save();
-  staffToken = jwt.sign({ id: staffUser._id, role: 'staff' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  staffToken = jwt.sign({ id: staffUser._id, role: 'staff' }, process.env.JWT_SECRET || 'care_sync_super_secret_jwt_key_2026', { expiresIn: '1h' });
   
   getBM25Instance('NAMC');
   getBM25Instance('ICD11');
+
+  // Start dedicated ephemeral test server (port 0 selects available random port)
+  testServer = await new Promise((resolve) => {
+    const srv = app.listen(0, () => resolve(srv));
+  });
+  const port = testServer.address().port;
+  API_BASE = `http://127.0.0.1:${port}/api/mapping`;
+  console.log(`[TEST] Ephemeral test server listening at: ${API_BASE}`);
 }
 
 async function cleanup() {
-  await User.deleteMany({ email: { $in: ['doc2@caresync.com', 'staff2@caresync.com'] } });
-  await TerminologyCrosswalk.deleteMany({});
-  await mongoose.disconnect();
-  console.log('[TEST] Cleaned up and disconnected');
+  if (testServer) {
+    await new Promise((resolve) => testServer.close(resolve));
+    console.log('[TEST] Closed ephemeral test HTTP server');
+  }
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+    console.log('[TEST] Disconnected from test database');
+  }
+  if (mongoMemoryServer) {
+    await mongoMemoryServer.stop();
+    console.log('[TEST] Stopped MongoDB In-Memory Server');
+  }
 }
 
 async function makeRequest(endpoint, payload, token) {

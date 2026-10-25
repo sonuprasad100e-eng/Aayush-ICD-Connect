@@ -34,7 +34,7 @@ class PatientController {
       res.status(200).json(patient);
     } catch (err) {
       if (err.status) {
-        return res.status(err.status).json({ detail: err.message });
+        return res.status(err.status).json({ detail: err.message, message: err.message });
       }
       next(err);
     }
@@ -51,7 +51,7 @@ class PatientController {
       res.status(201).json(patient);
     } catch (err) {
       if (err.status) {
-        return res.status(err.status).json({ detail: err.message });
+        return res.status(err.status).json({ detail: err.message, message: err.message });
       }
       next(err);
     }
@@ -68,7 +68,7 @@ class PatientController {
       res.status(200).json(patient);
     } catch (err) {
       if (err.status) {
-        return res.status(err.status).json({ detail: err.message });
+        return res.status(err.status).json({ detail: err.message, message: err.message });
       }
       next(err);
     }
@@ -85,7 +85,7 @@ class PatientController {
       res.status(200).json(result);
     } catch (err) {
       if (err.status) {
-        return res.status(err.status).json({ detail: err.message });
+        return res.status(err.status).json({ detail: err.message, message: err.message });
       }
       next(err);
     }
@@ -103,7 +103,7 @@ class PatientController {
       res.status(200).json(condition);
     } catch (err) {
       if (err.status) {
-        return res.status(err.status).json({ detail: err.message });
+        return res.status(err.status).json({ detail: err.message, message: err.message });
       }
       next(err);
     }

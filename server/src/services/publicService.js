@@ -38,11 +38,15 @@ class PublicService {
   async getStats() {
     await this.ensureDefaultClinic();
 
-    const [patients, mappings, clinics] = await Promise.all([
+    const TerminologyCrosswalk = require('../models/TerminologyCrosswalk');
+    const [patients, verifiedCrosswalksCount, legacyMappingsCount, clinics] = await Promise.all([
       Patient.countDocuments({ isDeleted: { $ne: true } }),
-      Mapping.countDocuments(),
+      TerminologyCrosswalk.countDocuments({ verified: true }),
+      Mapping.countDocuments({ status: { $in: ['confirmed', undefined] } }),
       Clinic.countDocuments()
     ]);
+
+    const mappings = Math.max(verifiedCrosswalksCount, legacyMappingsCount);
 
     return {
       patients,

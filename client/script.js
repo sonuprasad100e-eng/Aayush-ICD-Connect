@@ -1289,6 +1289,9 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => openPatientDetails(urlParams.get('view')), 300);
       }
 
+      let lookupDebounceTimer = null;
+      let activePatientLookupId = 0;
+
       function handleCodeChange(type) {
         verifiedDualCode = false;
         saveBtn.disabled = true;
@@ -1305,69 +1308,168 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       }
 
-      async function performLookup(code, type) {
-        if (!code || isLookingUp) return;
-        isLookingUp = true;
+      function applyVerifiedCrosswalk(data) {
+        namcInput.value = data.namcCode;
+        icdInput.value = data.icd11Tm2Code;
+        diagInput.value = data.ayushTerm;
+        namcInput.readOnly = true;
+        icdInput.readOnly = true;
+        verifiedDualCode = true;
+
+        resultBox.className = 'alert alert-success mt-3';
+        resultBox.classList.remove('d-none');
+        resultContent.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <strong class="text-success"><i class="fa-solid fa-circle-check me-1"></i> Verified Dual-Coding Confirmed</strong>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="resetLookupBtn" style="font-size:0.75rem;">Clear / Change</button>
+          </div>
+          <div><strong>Diagnosis:</strong> ${escapeHtml(data.ayushTerm)} ${data.icd11Term ? `&bull; <em>${escapeHtml(data.icd11Term)}</em>` : ''}</div>
+          <div class="small mt-1">
+            <span class="code-pill pill-namaste">${escapeHtml(data.namcCode)}</span> ⟷
+            <span class="code-pill pill-icd">${escapeHtml(data.icd11Tm2Code)}</span>
+            <span class="badge bg-light text-dark ms-2 border">${escapeHtml(data.relationshipType || 'equivalent')}</span>
+          </div>
+          <div class="small text-muted mt-1"><strong>Source:</strong> ${escapeHtml(data.source)}</div>
+        `;
+
+        const resetBtn = document.getElementById('resetLookupBtn');
+        if (resetBtn) {
+          resetBtn.addEventListener('click', () => {
+            namcInput.readOnly = false;
+            icdInput.readOnly = false;
+            namcInput.value = '';
+            icdInput.value = '';
+            diagInput.value = '';
+            verifiedDualCode = false;
+            saveBtn.disabled = true;
+            resultBox.classList.add('d-none');
+            namcInput.focus();
+          });
+        }
+
+        saveBtn.disabled = false;
+      }
+
+      async function performLookup(rawCode, type) {
+        const code = (rawCode || '').trim();
+        if (!code) {
+          resultBox.classList.add('d-none');
+          return;
+        }
+
+        const thisReqId = ++activePatientLookupId;
         verifiedDualCode = false;
+        saveBtn.disabled = true;
+
+        resultBox.className = 'alert alert-info mt-3';
+        resultBox.classList.remove('d-none');
+        resultContent.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Looking up verified crosswalk...';
 
         try {
-          resultBox.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-secondary');
-          resultBox.classList.add('alert-info');
-          resultContent.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Looking up verified crosswalk...';
-          saveBtn.disabled = true;
-
           const res = await authFetch(`/api/mapping/lookup?code=${encodeURIComponent(code)}&type=${type}`);
           const data = await res.json();
 
-          if (res.ok && data.found) {
-            if (type === 'NAMC') {
-              icdInput.value = data.icd11Tm2Code;
-              icdInput.readOnly = true;
-            } else {
-              namcInput.value = data.namcCode;
-              namcInput.readOnly = true;
-            }
-            diagInput.value = data.ayushTerm;
-            verifiedDualCode = true;
+          // Prevent stale responses from overwriting newer user input
+          if (thisReqId !== activePatientLookupId) return;
 
-            resultBox.classList.remove('alert-info');
-            resultBox.classList.add('alert-success');
-            resultContent.innerHTML = `
-              <strong>Verified Crosswalk Found!</strong><br>
-              Diagnosis: ${data.ayushTerm}<br>
-              NAMC: ${data.namcCode}<br>
-              ICD-11 TM2: ${data.icd11Tm2Code}<br>
-              Relationship: ${data.relationshipType}<br>
-              Verification: <i class="fa-solid fa-circle-check text-success"></i> Verified (${data.source})
-            `;
-            saveBtn.disabled = false;
+          if (res.ok && data.found) {
+            // Case A: Exactly one verified match
+            if (!data.matches || data.matches.length <= 1) {
+              applyVerifiedCrosswalk(data);
+            } else {
+              // Case B: Multiple verified matches - allow doctor to select
+              resultBox.className = 'alert alert-success mt-3';
+              resultContent.innerHTML = `
+                <div class="mb-2">
+                  <strong class="text-success"><i class="fa-solid fa-circle-check me-1"></i> Multiple Verified Crosswalks Found (${data.matchCount})</strong>
+                  <div class="small text-muted">Select the specific terminology mapping to apply to this patient:</div>
+                </div>
+                <div class="list-group list-group-flush border rounded bg-white mb-1">
+                  ${data.matches.map((m, idx) => `
+                    <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <div>
+                        <div class="fw-bold">${escapeHtml(m.ayushTerm)} ${m.icd11Term ? `(${escapeHtml(m.icd11Term)})` : ''}</div>
+                        <div class="small text-muted">
+                          <span class="code-pill pill-namaste">${escapeHtml(m.namcCode)}</span> ⟷
+                          <span class="code-pill pill-icd">${escapeHtml(m.icd11Tm2Code)}</span>
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-primary select-multi-match-btn" data-idx="${idx}">Select</button>
+                    </div>
+                  `).join('')}
+                </div>
+              `;
+
+              resultContent.querySelectorAll('.select-multi-match-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                  const idx = parseInt(btn.getAttribute('data-idx'), 10);
+                  if (!isNaN(idx) && data.matches[idx]) {
+                    applyVerifiedCrosswalk(data.matches[idx]);
+                  }
+                });
+              });
+            }
           } else {
-            resultBox.classList.remove('alert-info');
-            resultBox.classList.add('alert-danger');
-            resultContent.innerHTML = '<strong>Not Found:</strong> No verified crosswalk found for this code. You cannot use unverified codes.';
+            // Not verified or not found
+            diagInput.value = '';
             if (type === 'NAMC') icdInput.value = '';
             if (type === 'ICD11') namcInput.value = '';
-            diagInput.value = '';
-            saveBtn.disabled = true;
+
+            if (data.hasUnverifiedCandidate) {
+              resultBox.className = 'alert alert-warning mt-3';
+              resultContent.innerHTML = `
+                <strong class="text-warning-emphasis"><i class="fa-solid fa-triangle-exclamation me-1"></i> Unverified Candidate Mapping</strong>
+                <div class="small mt-1 text-dark">${escapeHtml(data.message)}</div>
+                <div class="small mt-2 pt-2 border-top text-danger fw-semibold">
+                  <i class="fa-solid fa-ban me-1"></i> Cannot be used for registration: Disease mappings must first be verified in the Disease Mapping module.
+                </div>
+              `;
+            } else {
+              resultBox.className = 'alert alert-danger mt-3';
+              resultContent.innerHTML = `<strong><i class="fa-solid fa-circle-xmark me-1"></i> No Verified Mapping Found:</strong> Code "${escapeHtml(code)}" does not match any officially verified terminology crosswalk. Patient registration strictly requires officially verified terminology.`;
+            }
           }
         } catch (e) {
-          resultBox.classList.remove('alert-info');
-          resultBox.classList.add('alert-danger');
-          resultContent.innerHTML = 'Error communicating with lookup service.';
-          saveBtn.disabled = true;
-        } finally {
-          setTimeout(() => { isLookingUp = false; }, 300);
+          if (thisReqId === activePatientLookupId) {
+            resultBox.className = 'alert alert-danger mt-3';
+            resultContent.innerHTML = 'Error communicating with terminology lookup service.';
+            saveBtn.disabled = true;
+          }
         }
       }
 
-      namcInput.addEventListener('input', () => { if (!namcInput.readOnly) handleCodeChange('NAMC'); });
+      namcInput.addEventListener('input', () => {
+        if (!namcInput.readOnly) {
+          handleCodeChange('NAMC');
+          clearTimeout(lookupDebounceTimer);
+          const val = namcInput.value.trim();
+          if (val) {
+            lookupDebounceTimer = setTimeout(() => performLookup(val, 'NAMC'), 350);
+          }
+        }
+      });
       namcInput.addEventListener('blur', (e) => {
-        if (!namcInput.readOnly && e.target.value.trim() && !isLookingUp) performLookup(e.target.value.trim(), 'NAMC');
+        if (!namcInput.readOnly && e.target.value.trim() && !verifiedDualCode) {
+          clearTimeout(lookupDebounceTimer);
+          performLookup(e.target.value.trim(), 'NAMC');
+        }
       });
 
-      icdInput.addEventListener('input', () => { if (!icdInput.readOnly) handleCodeChange('ICD11'); });
+      icdInput.addEventListener('input', () => {
+        if (!icdInput.readOnly) {
+          handleCodeChange('ICD11');
+          clearTimeout(lookupDebounceTimer);
+          const val = icdInput.value.trim();
+          if (val) {
+            lookupDebounceTimer = setTimeout(() => performLookup(val, 'ICD11'), 350);
+          }
+        }
+      });
       icdInput.addEventListener('blur', (e) => {
-        if (!icdInput.readOnly && e.target.value.trim() && !isLookingUp) performLookup(e.target.value.trim(), 'ICD11');
+        if (!icdInput.readOnly && e.target.value.trim() && !verifiedDualCode) {
+          clearTimeout(lookupDebounceTimer);
+          performLookup(e.target.value.trim(), 'ICD11');
+        }
       });
 
       saveBtn.addEventListener('click', async () => {
@@ -1424,20 +1526,66 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function initMappingPage() {
-    const searchInput = codeWidget.querySelector('.code-input');
-    const confirmBtn = codeWidget.querySelector('.quick-action-btn');
-    const suggestionList = codeWidget.querySelector('.suggestion-list');
-    const confidenceBadge = codeWidget.querySelector('.confidence-row');
+    const codeLookupSection = document.getElementById('codeLookupSection');
+    const termSearchSection = document.getElementById('termSearchSection');
+    const modeCodeLookupBtn = document.getElementById('modeCodeLookupBtn');
+    const modeTermSearchBtn = document.getElementById('modeTermSearchBtn');
+
+    const lookupCodeInput = document.getElementById('lookupCodeInput');
+    const codeTypeSelector = document.getElementById('codeTypeSelector');
+    const clearLookupCodeBtn = document.getElementById('clearLookupCodeBtn');
+    const codeLookupResultsContainer = document.getElementById('codeLookupResultsContainer');
+
+    const termSearchInput = document.getElementById('termSearchInput') || (codeWidget ? codeWidget.querySelector('.code-input') : null);
+    const confirmCandidateBtn = document.getElementById('confirmCandidateBtn') || (codeWidget ? codeWidget.querySelector('.quick-action-btn') : null);
+    const mappingActionFooter = document.getElementById('mappingActionFooter');
+    const suggestionList = codeWidget ? codeWidget.querySelector('.suggestion-list') : null;
+    const confidenceBadge = codeWidget ? codeWidget.querySelector('.confidence-row') : null;
     const mappingTableBody = document.querySelector('.mapping-table tbody');
+
     let currentSuggestion = null;
     let candidateList = [];
-    let searchTimer = null;
+    let termSearchTimer = null;
+    let codeLookupTimer = null;
+    let activeCodeLookupReq = 0;
 
-    // Check query params for term
+    // Mode Toggle (Code Lookup vs. Term Search)
+    if (modeCodeLookupBtn && modeTermSearchBtn && codeLookupSection && termSearchSection) {
+      modeCodeLookupBtn.addEventListener('click', () => {
+        modeCodeLookupBtn.classList.add('active');
+        modeTermSearchBtn.classList.remove('active');
+        codeLookupSection.classList.remove('d-none');
+        termSearchSection.classList.add('d-none');
+        if (mappingActionFooter) mappingActionFooter.style.display = 'none';
+        if (lookupCodeInput) lookupCodeInput.focus();
+      });
+
+      modeTermSearchBtn.addEventListener('click', () => {
+        modeTermSearchBtn.classList.add('active');
+        modeCodeLookupBtn.classList.remove('active');
+        termSearchSection.classList.remove('d-none');
+        codeLookupSection.classList.add('d-none');
+        if (currentSuggestion && mappingActionFooter) mappingActionFooter.style.display = 'flex';
+        if (termSearchInput) termSearchInput.focus();
+      });
+    }
+
+    // Check query params for initial code or term
     const mappingParams = new URLSearchParams(window.location.search);
+    const initialCode = mappingParams.get('code');
+    const initialType = mappingParams.get('type');
     const initialTerm = mappingParams.get('term');
-    if (initialTerm && searchInput) {
-      searchInput.value = initialTerm;
+
+    if (initialCode && lookupCodeInput) {
+      lookupCodeInput.value = initialCode;
+      if (initialType && codeTypeSelector) {
+        codeTypeSelector.value = initialType.toUpperCase();
+      }
+      setTimeout(() => performCodeLookup(initialCode, codeTypeSelector ? codeTypeSelector.value : 'AUTO'), 100);
+    } else if (initialTerm && termSearchInput) {
+      termSearchInput.value = initialTerm;
+      if (modeTermSearchBtn) modeTermSearchBtn.click();
+      setTimeout(() => searchMapping(initialTerm), 100);
     }
 
     async function loadMappingStats() {
@@ -1448,9 +1596,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const statNums = document.querySelectorAll('.mini-stat-num');
         if (statNums.length >= 4) {
-          statNums[0].textContent = (stats.mappedCount || 542).toLocaleString();
-          statNums[1].textContent = stats.unmappedCount || 23;
-          statNums[2].textContent = `${stats.avgConfidence || 96}%`;
+          statNums[0].textContent = (typeof stats.mappedCount === 'number' ? stats.mappedCount : 0).toLocaleString();
+          statNums[1].textContent = typeof stats.unmappedCount === 'number' ? stats.unmappedCount : 0;
+          statNums[2].textContent = `${typeof stats.avgConfidence === 'number' ? stats.avgConfidence : 0}%`;
           statNums[3].textContent = stats.fhirCompliance || 'FHIR R4';
         }
       } catch (err) {
@@ -1465,21 +1613,244 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!res.ok) return;
         const mappings = await res.json();
 
-        if (mappings.length > 0) {
+        if (mappings && mappings.length > 0) {
           mappingTableBody.innerHTML = mappings.map(m => {
             const confClass = m.confidenceScore >= 90 ? 'confidence-high' : (m.confidenceScore >= 75 ? 'confidence-medium' : 'confidence-low');
             return `
               <tr>
-                <td>${escapeHtml(m.searchTerm)}</td>
-                <td><span class="code-pill pill-namaste">${escapeHtml(m.namasteCode)}</span></td>
-                <td><span class="code-pill pill-icd">${escapeHtml(m.icd11Tm2Code)}</span></td>
-                <td><span class="confidence-badge ${confClass}">${m.confidenceScore}%</span></td>
+                <td>${escapeHtml(m.searchTerm || m.ayushTerm || 'N/A')}</td>
+                <td><span class="code-pill pill-namaste">${escapeHtml(m.namasteCode || m.namcCode || 'N/A')}</span></td>
+                <td><span class="code-pill pill-icd">${escapeHtml(m.icd11Tm2Code || 'N/A')}</span></td>
+                <td><span class="confidence-badge ${confClass}">${m.confidenceScore || 95}%</span></td>
               </tr>
             `;
           }).join('');
+        } else {
+          mappingTableBody.innerHTML = `
+            <tr>
+              <td colspan="4" class="text-center py-4 text-muted">
+                <i class="fa-solid fa-folder-open me-2"></i>No mapped terminology records found.
+              </td>
+            </tr>
+          `;
         }
       } catch (err) {
         console.error(err);
+      }
+    }
+
+    // ========================================================
+    // Automatic Two-Way Code Lookup
+    // ========================================================
+    async function performCodeLookup(rawCode, type) {
+      const code = (rawCode || '').trim();
+      if (!codeLookupResultsContainer) return;
+
+      if (!code) {
+        if (clearLookupCodeBtn) clearLookupCodeBtn.classList.add('d-none');
+        codeLookupResultsContainer.innerHTML = `
+          <div class="text-muted text-center p-4 border rounded" style="border-style:dashed!important;">
+            <i class="fa-solid fa-magnifying-glass fs-3 mb-2 opacity-50"></i>
+            <div>Enter any NAMASTE/NAMC or ICD-11 TM2 code to automatically retrieve its dual code, diagnosis, and verification details.</div>
+          </div>
+        `;
+        return;
+      }
+
+      if (clearLookupCodeBtn) clearLookupCodeBtn.classList.remove('d-none');
+
+      const thisReqId = ++activeCodeLookupReq;
+      codeLookupResultsContainer.innerHTML = `
+        <div class="text-center py-4 text-muted border rounded">
+          <i class="fa-solid fa-spinner fa-spin fs-4 mb-2 text-primary"></i>
+          <div>Searching terminology crosswalks for "<strong>${escapeHtml(code)}</strong>"...</div>
+        </div>
+      `;
+
+      try {
+        const url = `/api/mapping/lookup?code=${encodeURIComponent(code)}${type && type !== 'AUTO' ? `&type=${type}` : ''}`;
+        const res = await authFetch(url);
+        const data = await res.json();
+
+        // Stale response check
+        if (thisReqId !== activeCodeLookupReq) return;
+
+        if (res.ok && data.found) {
+          // Exactly one or multiple verified matches
+          const matches = data.matches && data.matches.length > 0 ? data.matches : [data];
+          const hasMultiple = matches.length > 1;
+
+          codeLookupResultsContainer.innerHTML = `
+            <div class="card border-success mb-3 shadow-sm">
+              <div class="card-header bg-success-subtle text-success-emphasis d-flex justify-content-between align-items-center py-2">
+                <span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Officially Verified</span>
+                <span class="small text-muted">Searched: <strong>${escapeHtml(code)}</strong> (${escapeHtml(data.searchedType || 'Auto')})</span>
+              </div>
+              <div class="card-body p-3">
+                ${hasMultiple ? `<div class="alert alert-info py-1 px-2 small mb-3"><i class="fa-solid fa-info-circle me-1"></i> Found <strong>${data.matchCount}</strong> matching verified crosswalks:</div>` : ''}
+                
+                ${matches.map(m => `
+                  <div class="p-2 mb-2 rounded bg-light border">
+                    <div class="row g-2 align-items-center">
+                      <div class="col-6">
+                        <div class="small text-muted fw-semibold" style="font-size:0.75rem;">NAMASTE / AYUSH</div>
+                        <div class="fw-bold">${escapeHtml(m.ayushTerm || 'N/A')}</div>
+                        <span class="code-pill pill-namaste mt-1">${escapeHtml(m.namcCode || 'N/A')}</span>
+                      </div>
+                      <div class="col-6">
+                        <div class="small text-muted fw-semibold" style="font-size:0.75rem;">ICD-11 (TM2)</div>
+                        <div class="fw-bold">${escapeHtml(m.icd11Term || 'N/A')}</div>
+                        <span class="code-pill pill-icd mt-1">${escapeHtml(m.icd11Tm2Code || 'N/A')}</span>
+                      </div>
+                    </div>
+                    <div class="small text-muted mt-2 pt-1 border-top" style="font-size:0.78rem;">
+                      <div><strong>Relationship:</strong> ${escapeHtml(m.relationshipType || 'equivalent')} &bull; <strong>System:</strong> ${escapeHtml(m.system || 'Ayurveda')}</div>
+                      <div><strong>Source:</strong> ${escapeHtml(m.source || 'Ministry of Ayush & WHO ICD-11 TM2')}</div>
+                    </div>
+                  </div>
+                `).join('')}
+
+                <div class="mt-2 text-end">
+                  <a href="patients.html" class="btn btn-sm btn-outline-success">
+                    <i class="fa-solid fa-user-plus me-1"></i> Register Patient with this Code
+                  </a>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          // Candidate or Not Found
+          if (data.hasUnverifiedCandidate && data.candidate) {
+            codeLookupResultsContainer.innerHTML = `
+              <div class="card border-warning mb-3 shadow-sm">
+                <div class="card-header bg-warning-subtle text-warning-emphasis d-flex justify-content-between align-items-center py-2">
+                  <span class="badge bg-warning text-dark"><i class="fa-solid fa-triangle-exclamation me-1"></i> Unverified Candidate</span>
+                  <span class="small text-muted">Searched: <strong>${escapeHtml(code)}</strong></span>
+                </div>
+                <div class="card-body p-3">
+                  <div class="alert alert-warning py-2 px-3 small mb-3">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i> ${escapeHtml(data.message)}
+                  </div>
+                  <div class="p-2 rounded bg-light border">
+                    <div class="row g-2 align-items-center">
+                      <div class="col-6">
+                        <div class="small text-muted fw-semibold" style="font-size:0.75rem;">NAMASTE / AYUSH</div>
+                        <div class="fw-bold">${escapeHtml(data.candidate.ayushTerm || 'N/A')}</div>
+                        <span class="code-pill pill-namaste mt-1">${escapeHtml(data.candidate.namcCode || 'N/A')}</span>
+                      </div>
+                      <div class="col-6">
+                        <div class="small text-muted fw-semibold" style="font-size:0.75rem;">ICD-11 (TM2)</div>
+                        <div class="fw-bold">${escapeHtml(data.candidate.icd11Term || 'N/A')}</div>
+                        <span class="code-pill pill-icd mt-1">${escapeHtml(data.candidate.icd11Tm2Code || 'N/A')}</span>
+                      </div>
+                    </div>
+                    <div class="small text-muted mt-2 pt-1 border-top" style="font-size:0.78rem;">
+                      <div><strong>Relationship:</strong> ${escapeHtml(data.candidate.relationshipType || 'related')} &bull; <strong>Source:</strong> ${escapeHtml(data.candidate.source || 'Catalog')}</div>
+                    </div>
+                  </div>
+                  <div class="mt-2 text-danger small">
+                    <i class="fa-solid fa-lock me-1"></i> Cannot be registered until officially verified by a doctor.
+                  </div>
+                </div>
+              </div>
+            `;
+          } else if (data.inDataset && data.namcEntry) {
+            codeLookupResultsContainer.innerHTML = `
+              <div class="card border-secondary mb-3 shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                  <span class="badge bg-secondary"><i class="fa-solid fa-database me-1"></i> In Dataset (Unmapped)</span>
+                  <span class="small text-muted">Searched: <strong>${escapeHtml(code)}</strong></span>
+                </div>
+                <div class="card-body p-3">
+                  <p class="small text-muted mb-2">${escapeHtml(data.message)}</p>
+                  <div class="p-2 rounded bg-light border">
+                    <div class="fw-bold">${escapeHtml(data.namcEntry.ayushTerm)}</div>
+                    ${data.namcEntry.englishTerm ? `<div class="small text-muted">${escapeHtml(data.namcEntry.englishTerm)}</div>` : ''}
+                    <div class="mt-1"><span class="code-pill pill-namaste">${escapeHtml(data.namcEntry.namcCode)}</span></div>
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            codeLookupResultsContainer.innerHTML = `
+              <div class="alert alert-danger p-3 shadow-sm">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <i class="fa-solid fa-circle-xmark fs-5"></i>
+                  <strong>No Match Found</strong>
+                </div>
+                <div class="small">No crosswalk found for code "<strong>${escapeHtml(code)}</strong>". Check the code syntax or try searching by clinical term in the Term tab.</div>
+              </div>
+            `;
+          }
+        }
+      } catch (err) {
+        if (thisReqId === activeCodeLookupReq) {
+          codeLookupResultsContainer.innerHTML = `
+            <div class="alert alert-danger p-3">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i> Error connecting to lookup service. Please try again.
+            </div>
+          `;
+        }
+      }
+    }
+
+    if (lookupCodeInput) {
+      lookupCodeInput.addEventListener('input', () => {
+        clearTimeout(codeLookupTimer);
+        const val = lookupCodeInput.value;
+        const type = codeTypeSelector ? codeTypeSelector.value : 'AUTO';
+        codeLookupTimer = setTimeout(() => performCodeLookup(val, type), 300);
+      });
+      lookupCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          clearTimeout(codeLookupTimer);
+          const type = codeTypeSelector ? codeTypeSelector.value : 'AUTO';
+          performCodeLookup(lookupCodeInput.value, type);
+        }
+      });
+    }
+
+    if (codeTypeSelector) {
+      codeTypeSelector.addEventListener('change', () => {
+        if (lookupCodeInput && lookupCodeInput.value.trim()) {
+          performCodeLookup(lookupCodeInput.value, codeTypeSelector.value);
+        }
+      });
+    }
+
+    if (clearLookupCodeBtn) {
+      clearLookupCodeBtn.addEventListener('click', () => {
+        if (lookupCodeInput) {
+          lookupCodeInput.value = '';
+          lookupCodeInput.focus();
+        }
+        performCodeLookup('', 'AUTO');
+      });
+    }
+
+    // Quick sample badge click
+    document.querySelectorAll('.quick-sample-badge').forEach(badge => {
+      badge.addEventListener('click', () => {
+        const sampleCode = badge.getAttribute('data-code');
+        if (sampleCode && lookupCodeInput) {
+          lookupCodeInput.value = sampleCode;
+          if (modeCodeLookupBtn) modeCodeLookupBtn.click();
+          const type = codeTypeSelector ? codeTypeSelector.value : 'AUTO';
+          performCodeLookup(sampleCode, type);
+        }
+      });
+    });
+
+    function updateSelectedPreview(cand) {
+      if (!cand) {
+        if (mappingActionFooter) mappingActionFooter.style.display = 'none';
+        return;
+      }
+      if (mappingActionFooter) mappingActionFooter.style.display = 'flex';
+      const textSpan = mappingActionFooter ? mappingActionFooter.querySelector('.selected-cand-text') : null;
+      if (textSpan) {
+        textSpan.textContent = `${cand.namcTerm || 'AYUSH'} (${cand.namcCode || 'N/A'}) ↔ ${cand.icd11Term || 'WHO TM2'} (${cand.icd11Tm2Code || 'Pending'})`;
       }
     }
 
@@ -1487,6 +1858,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!term.trim()) {
         if (suggestionList) suggestionList.innerHTML = '';
         if (confidenceBadge) confidenceBadge.innerHTML = '';
+        if (confirmCandidateBtn) confirmCandidateBtn.style.display = 'none';
+        if (mappingActionFooter) mappingActionFooter.style.display = 'none';
+        currentSuggestion = null;
+        candidateList = [];
         return;
       }
 
@@ -1494,6 +1869,7 @@ document.addEventListener('DOMContentLoaded', function () {
         suggestionList.innerHTML = `<div class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Searching terminology crosswalks...</div>`;
       }
       if (confidenceBadge) confidenceBadge.innerHTML = '';
+      if (mappingActionFooter) mappingActionFooter.style.display = 'none';
 
       try {
         const res = await authFetch(`/api/mapping/candidates?term=${encodeURIComponent(term)}`);
@@ -1501,6 +1877,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (suggestionList) {
             suggestionList.innerHTML = `<div class="text-danger">Unable to search mappings. Please try again.</div>`;
           }
+          if (mappingActionFooter) mappingActionFooter.style.display = 'none';
           return;
         }
 
@@ -1508,13 +1885,15 @@ document.addEventListener('DOMContentLoaded', function () {
         candidateList = data.candidates || [];
         currentSuggestion = candidateList.length > 0 ? candidateList[0] : null;
 
-        if (confirmBtn) {
-          confirmBtn.style.display = currentSuggestion ? 'block' : 'none';
+        if (confirmCandidateBtn) {
+          confirmCandidateBtn.style.display = currentSuggestion ? 'inline-flex' : 'none';
         }
+        updateSelectedPreview(currentSuggestion);
 
         if (suggestionList) {
           if (candidateList.length === 0) {
             suggestionList.innerHTML = `<div class="text-muted p-3 text-center">No candidate mapping found for "${escapeHtml(term)}".</div>`;
+            if (mappingActionFooter) mappingActionFooter.style.display = 'none';
             return;
           }
 
@@ -1530,9 +1909,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             return `
               <div class="suggestion-item candidate-card border ${isTop ? 'border-warning' : 'border-secondary'} mb-3 p-3 position-relative" data-idx="${idx}" style="cursor:pointer;" title="Click to select this candidate">
-                <div class="candidate-header mb-2 d-flex justify-content-between align-items-center">
-                  ${topBadge}
-                  <span class="badge ${isTop ? 'bg-primary' : 'bg-dark'} select-badge">${isTop ? 'Active Selection' : 'Click to Select'}</span>
+                <div class="candidate-header mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    ${topBadge}
+                    <span class="badge ${isTop ? 'bg-primary' : 'bg-dark'} select-badge">${isTop ? 'Active Selection' : 'Click to Select'}</span>
+                  </div>
+                  <button type="button" class="btn btn-sm ${isTop ? 'btn-success' : 'btn-outline-success'} card-direct-verify-btn py-1 px-2" data-idx="${idx}" style="font-size:0.75rem; font-weight:600;">
+                    <i class="fa-solid fa-check me-1"></i>Verify
+                  </button>
                 </div>
                 <div class="candidate-grid mb-2">
                   <div class="candidate-col candidate-col-namc">
@@ -1555,9 +1939,10 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
           }).join('');
 
-          // Select candidate on card click
+          // Select candidate on card click or direct verify
           suggestionList.querySelectorAll('.candidate-card').forEach(card => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
+              const isDirectVerify = e.target.closest('.card-direct-verify-btn');
               const idx = parseInt(card.getAttribute('data-idx'), 10);
               if (!isNaN(idx) && candidateList[idx]) {
                 currentSuggestion = candidateList[idx];
@@ -1569,6 +1954,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     b.className = 'badge bg-dark select-badge';
                     b.textContent = 'Click to Select';
                   }
+                  const vb = c.querySelector('.card-direct-verify-btn');
+                  if (vb) {
+                    vb.className = 'btn btn-sm btn-outline-success card-direct-verify-btn py-1 px-2';
+                  }
                 });
                 card.classList.remove('border-secondary');
                 card.classList.add('border-warning');
@@ -1576,6 +1965,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (b) {
                   b.className = 'badge bg-primary select-badge';
                   b.textContent = 'Active Selection';
+                }
+                const vb = card.querySelector('.card-direct-verify-btn');
+                if (vb) {
+                  vb.className = 'btn btn-sm btn-success card-direct-verify-btn py-1 px-2';
+                }
+                updateSelectedPreview(currentSuggestion);
+
+                if (isDirectVerify) {
+                  if (confirmCandidateBtn) confirmCandidateBtn.click();
+                  return;
                 }
                 showToast(`Selected: ${currentSuggestion.namcTerm} ↔ ${currentSuggestion.icd11Term}`, 'info', 2000);
               }
@@ -1587,14 +1986,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (suggestionList) {
           suggestionList.innerHTML = `<div class="text-danger">Unable to search mappings. Please try again.</div>`;
         }
+        if (mappingActionFooter) mappingActionFooter.style.display = 'none';
       }
     }
 
-    if (searchInput) {
-      searchInput.addEventListener('input', () => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
-          searchMapping(searchInput.value.trim());
+    if (termSearchInput) {
+      termSearchInput.addEventListener('input', () => {
+        clearTimeout(termSearchTimer);
+        termSearchTimer = setTimeout(() => {
+          searchMapping(termSearchInput.value.trim());
         }, 300);
       });
     }
@@ -1606,9 +2006,9 @@ document.addEventListener('DOMContentLoaded', function () {
       verifyModal = new bootstrap.Modal(verifyModalEl);
     }
 
-    if (confirmBtn) {
-      confirmBtn.addEventListener('click', async () => {
-        const term = searchInput ? searchInput.value.trim() : '';
+    if (confirmCandidateBtn) {
+      confirmCandidateBtn.addEventListener('click', async () => {
+        const term = termSearchInput ? termSearchInput.value.trim() : '';
         if (!term) {
           showToast('Please enter an AYUSH term first.', 'warning');
           return;
@@ -2007,70 +2407,155 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function initReportsPage() {
     try {
-      // 1. Overview stats
+      // 1. Overview stats (Phase 2A, 2B, 2C)
       const overRes = await authFetch('/api/reports/overview');
       if (overRes.ok) {
         const overview = await overRes.json();
-        const statNums = document.querySelectorAll('.mini-stat-num');
-        if (statNums.length >= 4) {
-          statNums[0].textContent = (overview.totalDiagnoses || 2856).toLocaleString();
-          statNums[1].textContent = `${overview.claimsApprovedRate || 96}%`;
-          statNums[2].textContent = `${overview.claimsRejectedRate || 4.2}%`;
-          statNums[3].textContent = (overview.codesMappedYtd || 1024).toLocaleString();
+
+        // Catalogue Diagnoses (NAMC AYUSH Morbidity Catalogue)
+        const catEl = document.getElementById('statCatalogueDiagnoses');
+        if (catEl) {
+          catEl.textContent = (overview.catalogueDiagnoses || overview.totalDiagnoses || 2910).toLocaleString();
         }
 
-        const donutNum = document.querySelector('.donut-num');
-        if (donutNum) donutNum.textContent = `${overview.claimsApprovedRate || 96}%`;
+        // Clinical Cases (Registered Patients in Clinic)
+        const clinEl = document.getElementById('statClinicalCases');
+        if (clinEl) {
+          clinEl.textContent = (overview.registeredClinicalCases ?? 0).toLocaleString();
+        }
+        const uniqueSub = document.getElementById('statUniqueConceptsSub');
+        if (uniqueSub) {
+          const uniqueCount = overview.uniqueClinicalConcepts ?? 0;
+          uniqueSub.textContent = `${uniqueCount} unique concept${uniqueCount === 1 ? '' : 's'} treated`;
+        }
+
+        // Verified Crosswalks
+        const mappedEl = document.getElementById('statCodesMapped');
+        if (mappedEl) {
+          mappedEl.textContent = (overview.verifiedMappings ?? overview.codesMappedYtd ?? 0).toLocaleString();
+        }
+
+        // Insurance Claims Stat
+        const claimsEl = document.getElementById('statClaimsApproved');
+        if (claimsEl) {
+          if (overview.claims && overview.claims.available && overview.claims.claimsApprovedRate !== null) {
+            claimsEl.textContent = `${overview.claims.claimsApprovedRate}%`;
+            claimsEl.style.color = 'var(--soft-green)';
+          } else {
+            claimsEl.textContent = 'No Data';
+            claimsEl.style.fontSize = '1.25rem';
+            claimsEl.style.color = '#8A93A0';
+          }
+        }
+
+        // Fallback for query selector if custom IDs not found
+        const statNums = document.querySelectorAll('.mini-stat-num');
+        if (statNums.length >= 4 && !catEl) {
+          statNums[0].textContent = (overview.catalogueDiagnoses || 2910).toLocaleString();
+          statNums[1].textContent = (overview.registeredClinicalCases ?? 0).toLocaleString();
+          statNums[2].textContent = (overview.verifiedMappings ?? 0).toLocaleString();
+          statNums[3].textContent = overview.claims?.available ? `${overview.claims.claimsApprovedRate}%` : 'No Data';
+        }
+
+        // Claims card container handling (Phase 2C & Phase 4)
+        const claimsContent = document.getElementById('claimsContent');
+        if (claimsContent) {
+          if (overview.claims && overview.claims.available && overview.claims.claimsApprovedRate !== null) {
+            const approved = overview.claims.claimsApprovedRate || 0;
+            const rejected = overview.claims.claimsRejectedRate || 0;
+            claimsContent.innerHTML = `
+              <div class="donut-chart">
+                <div class="donut-ring" style="background: conic-gradient(var(--soft-green) 0% ${approved}%, var(--soft-red) ${approved}% 100%);"></div>
+                <div class="donut-center">
+                  <div class="donut-num">${approved}%</div>
+                  <div class="donut-label">Approved</div>
+                </div>
+              </div>
+              <div class="donut-legend">
+                <span><span class="dot dot-mapped"></span> Approved: ${approved}% (${overview.claims.approvedCount || 0})</span>
+                <span><span class="dot dot-unmapped"></span> Rejected: ${rejected}% (${overview.claims.rejectedCount || 0})</span>
+              </div>
+            `;
+          } else {
+            claimsContent.innerHTML = `
+              <div class="empty-claims-state py-3 px-2">
+                <i class="fa-solid fa-file-invoice-dollar mb-3 text-muted" style="font-size:2.8rem; opacity:0.4;"></i>
+                <h6 class="fw-semibold text-secondary mb-2" style="font-size:0.95rem;">No Claims Data Available</h6>
+                <p class="text-muted small mb-3" style="max-width:300px; margin:0 auto; line-height:1.45;">
+                  ABHA / NHCX gateway is not integrated. No claim submissions or adjudication records currently exist for this clinic.
+                </p>
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background:rgba(13,148,136,0.08); border:1px solid rgba(13,148,136,0.2); font-size:0.75rem; color:var(--teal);">
+                  <i class="fa-solid fa-circle-check"></i>
+                  <span>Dual-coded EHR ready for claims integration</span>
+                </div>
+              </div>
+            `;
+          }
+        }
       }
 
-      // 2. System Breakdown bar chart
+      // 2. System Breakdown bar chart (Phase 2A)
       const sysRes = await authFetch('/api/reports/system-breakdown');
       if (sysRes.ok) {
         const breakdown = await sysRes.json();
-        const barChart = document.querySelector('.bar-chart');
-        if (barChart && breakdown.length > 0) {
+        const barChart = document.getElementById('systemBarChart') || document.querySelector('.bar-chart');
+        const basisBadge = document.getElementById('systemBasisBadge');
+
+        if (basisBadge && breakdown.length > 0 && breakdown[0].basis) {
+          basisBadge.textContent = breakdown[0].basis === 'clinical_cases' ? 'Clinic Patient Cases' : 'Verified Crosswalks';
+        }
+
+        if (barChart && Array.isArray(breakdown) && breakdown.length > 0) {
           barChart.innerHTML = breakdown.map(item => `
             <div class="bar-row">
               <span class="bar-label">${escapeHtml(item.system)}</span>
               <div class="bar-track"><div class="bar-fill" style="width:${item.percentage}%; background:${item.color};"></div></div>
-              <span class="bar-value">${item.percentage}%</span>
+              <span class="bar-value">${item.count !== undefined ? `${item.count} (${item.percentage}%)` : `${item.percentage}%`}</span>
             </div>
           `).join('');
         }
       }
 
-      // 3. Monthly Dual-Coding Volume Trend
+      // 3. Monthly Dual-Coding Volume Trend (Phase 2D)
       const trendRes = await authFetch('/api/reports/trend?months=6');
       if (trendRes.ok) {
         const trend = await trendRes.json();
-        const trendChart = document.querySelector('.trend-chart');
-        if (trendChart && trend.length > 0) {
-          trendChart.innerHTML = trend.map(t => `
-            <div class="trend-col"><div class="trend-bar" style="height:${t.volume}%;"></div><span>${escapeHtml(t.month)}</span></div>
-          `).join('');
+        const trendChart = document.getElementById('trendChartContainer') || document.querySelector('.trend-chart');
+        if (trendChart && Array.isArray(trend) && trend.length > 0) {
+          trendChart.innerHTML = trend.map(t => {
+            const barHeight = t.volume > 0 ? t.volume : (t.count > 0 ? 8 : 2);
+            return `
+              <div class="trend-col" title="${t.count} confirmed mapping(s) in ${t.month} ${t.year}">
+                <span class="text-muted" style="font-size:0.72rem; font-weight:600; margin-bottom:4px;">${t.count}</span>
+                <div class="trend-bar" style="height:${barHeight}%;"></div>
+                <span>${escapeHtml(t.month)}</span>
+              </div>
+            `;
+          }).join('');
         }
       }
 
-      // 4. Downloadable reports table
+      // 4. Downloadable reports table (Phase 2E)
       const fileRes = await authFetch('/api/reports/files');
       if (fileRes.ok) {
         const files = await fileRes.json();
-        const repTableBody = document.querySelector('.table-card:last-of-type tbody');
-        if (repTableBody && files.length > 0) {
+        const repTableBody = document.getElementById('availableReportsTableBody') || document.querySelector('.table-card:last-of-type tbody');
+        if (repTableBody && Array.isArray(files) && files.length > 0) {
           repTableBody.innerHTML = files.map(f => `
             <tr>
-              <td>${escapeHtml(f.name)}</td>
-              <td>${escapeHtml(f.period)}</td>
-              <td>${escapeHtml(f.generatedOn)}</td>
+              <td class="fw-medium">${escapeHtml(f.name)}</td>
+              <td><span class="badge bg-light text-dark border">${escapeHtml(f.period)}</span></td>
+              <td class="text-muted small">${escapeHtml(f.generatedOn)}</td>
+              <td><span class="badge bg-secondary-subtle text-secondary">${escapeHtml(f.format || 'CSV')}</span></td>
               <td class="text-end">
-                <a href="${f.fileUrl}" class="view-link download-report-link" data-id="${f.id}" data-name="${escapeHtml(f.name)}">
+                <a href="${f.fileUrl}" class="view-link download-report-link" data-id="${f.id}" data-name="${escapeHtml(f.name)}" style="text-decoration:none; font-weight:600;">
                   <i class="fa-solid fa-download me-1"></i>Download CSV
                 </a>
               </td>
             </tr>
           `).join('');
 
-          // Wire download links
+          // Wire genuine report download links
           repTableBody.querySelectorAll('.download-report-link').forEach(link => {
             link.addEventListener('click', async (e) => {
               e.preventDefault();
@@ -2085,20 +2570,23 @@ document.addEventListener('DOMContentLoaded', function () {
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `${name.replace(/\s+/g, '_')}.csv`;
+                  a.download = `${name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
                   document.body.appendChild(a);
                   a.click();
                   a.remove();
                   window.URL.revokeObjectURL(url);
                   showToast(`${name} downloaded successfully!`, 'success');
                 } else {
-                  showToast('Failed to download report file.', 'error');
+                  const errJson = await downloadRes.json().catch(() => ({}));
+                  showToast(errJson.message || 'Report download is currently unavailable.', 'error');
                 }
               } catch (err) {
                 showToast('Network error during report download.', 'error');
               }
             });
           });
+        } else if (repTableBody) {
+          repTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted small">No available reports generated yet.</td></tr>`;
         }
       }
 
@@ -2123,7 +2611,8 @@ document.addEventListener('DOMContentLoaded', function () {
               window.URL.revokeObjectURL(url);
               showToast('Morbidity analytics export downloaded!', 'success');
             } else {
-              showToast('Could not generate export.', 'error');
+              const errData = await res.json().catch(() => ({}));
+              showToast(errData.message || 'Could not generate export.', 'error');
             }
           } catch (err) {
             showToast('Export network error.', 'error');

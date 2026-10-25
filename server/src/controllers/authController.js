@@ -65,7 +65,7 @@ class AuthController {
       res.status(200).json(result);
     } catch (err) {
       if (err.status) {
-        return res.status(err.status).json({ detail: err.message });
+        return res.status(err.status).json({ detail: err.message, message: err.message });
       }
       next(err);
     }

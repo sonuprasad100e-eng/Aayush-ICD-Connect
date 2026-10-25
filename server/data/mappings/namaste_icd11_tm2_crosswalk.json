@@ -1,38 +1,137 @@
 [
   {
-    "namcCode": "",
-    "ayushTerm": "Jvara",
+    "namcId": "689",
+    "namcCode": "SP51(EC-3)",
+    "ayushTerm": "jvaraH",
     "system": "Ayurveda",
     "icd11Tm2Code": "SP51",
     "icd11Term": "Fever disorder (TM2)",
-    "source": "WHO ICD-11 Coding Tool",
-    "verified": true
+    "whoEntityUri": "https://id.who.int/icd/entity/1754178993",
+    "whoSynonyms": [
+      "(a) jvara",
+      "(b) Taṉvaẕi curam",
+      "(c) Ḥummā"
+    ],
+    "source": "Ministry of Ayush (NAMC) & WHO ICD-11 TM2 Official Publication",
+    "relationshipType": "equivalent",
+    "verified": true,
+    "verificationMethod": "official_crosswalk"
   },
   {
-    "namcCode": "",
-    "ayushTerm": "Kāsaḥ",
+    "namcId": "480",
+    "namcCode": "SL41(EA-3)",
+    "ayushTerm": "kAsaH",
     "system": "Ayurveda",
     "icd11Tm2Code": "SL41",
     "icd11Term": "Cough disorder (TM2)",
-    "source": "WHO ICD-11 Coding Tool",
-    "verified": true
+    "whoEntityUri": "https://id.who.int/icd/entity/1155955370",
+    "whoSynonyms": [
+      "(a) kāsaḥ",
+      "(b) Irumal nōy",
+      "(c) Su‘āl-o-Surfa"
+    ],
+    "source": "Ministry of Ayush (NAMC) & WHO ICD-11 TM2 Official Publication",
+    "relationshipType": "equivalent",
+    "verified": true,
+    "verificationMethod": "official_crosswalk"
   },
   {
-    "namcCode": "",
-    "ayushTerm": "Pramehaḥ",
+    "namcId": "1110",
+    "namcCode": "SM8D (EF-2)",
+    "ayushTerm": "pramehaH",
     "system": "Ayurveda",
     "icd11Tm2Code": "SM8D",
     "icd11Term": "Polyuria disorder (TM2)",
-    "source": "WHO ICD-11 Coding Tool",
-    "verified": true
+    "whoEntityUri": "https://id.who.int/icd/entity/1280110553",
+    "whoSynonyms": [
+      "(a) pramehaḥ",
+      "(b) Nīriṉaipperukkal nōykaḷ",
+      "(c) Kathra al-Bawl"
+    ],
+    "source": "Ministry of Ayush (NAMC) & WHO ICD-11 TM2 Official Publication",
+    "relationshipType": "equivalent",
+    "verified": true,
+    "verificationMethod": "official_crosswalk"
   },
   {
-    "namcCode": "",
-    "ayushTerm": "Prameha-piḍakā",
+    "namcId": "1141",
+    "namcCode": "EF-2.5 (SN92)",
+    "ayushTerm": "prameha-piDakA",
     "system": "Ayurveda",
     "icd11Tm2Code": "SN92",
-    "icd11Term": "Carbuncle disorder (TM2)",
-    "source": "WHO ICD-11 Coding Tool",
-    "verified": true
+    "icd11Term": "Carbuncles disorder due to diabetes (TM2)",
+    "whoEntityUri": "https://id.who.int/icd/entity/1625005710",
+    "whoSynonyms": [
+      "(a) prameha-piḍakā"
+    ],
+    "source": "Ministry of Ayush (NAMC) & WHO ICD-11 TM2 Official Publication",
+    "relationshipType": "equivalent",
+    "verified": true,
+    "verificationMethod": "official_crosswalk"
+  },
+  {
+    "namcId": "1139",
+    "namcCode": "SP60 (EF-2.4.4)",
+    "ayushTerm": "madhumehaH/kShaudramehaH",
+    "system": "Ayurveda",
+    "icd11Tm2Code": "SP60",
+    "icd11Term": "Diabetes mellitus disorder (TM2)",
+    "whoEntityUri": "https://id.who.int/icd/entity/298183636",
+    "whoSynonyms": [
+      "(a) kṣaudramehaḥ",
+      "(a) madhumehaḥ",
+      "(b) Nīriẕivu",
+      "(c) Dhayābīṭus"
+    ],
+    "source": "Ministry of Ayush (NAMC) & WHO ICD-11 TM2 Official Publication",
+    "relationshipType": "equivalent",
+    "verified": true,
+    "verificationMethod": "official_crosswalk"
+  },
+  {
+    "namcId": "8",
+    "namcCode": "SR10 (AAA-2.1)",
+    "ayushTerm": "vAtaprakopaH",
+    "system": "Ayurveda",
+    "icd11Tm2Code": "SR10",
+    "icd11Term": "Vitiation of vāta pattern (TM2)",
+    "whoEntityUri": "https://id.who.int/icd/entity/1885164289",
+    "whoSynonyms": [
+      "(a) vātaprakopaḥ"
+    ],
+    "source": "Ministry of Ayush (NAMC) & WHO ICD-11 TM2 Official Publication",
+    "relationshipType": "equivalent",
+    "verified": true,
+    "verificationMethod": "official_crosswalk"
+  },
+  {
+    "namcCode": "AYU-0205",
+    "ayushTerm": "Su-e-Mizaj",
+    "system": "Unani",
+    "icd11Tm2Code": "SP80",
+    "icd11Term": "Temperament Disorder (TM2 Candidate)",
+    "source": "Unverified AYUSH Clinical Catalog",
+    "relationshipType": "related",
+    "verified": false
+  },
+  {
+    "namcCode": "AYU-0261",
+    "ayushTerm": "Vali Noi",
+    "system": "Siddha",
+    "icd11Tm2Code": "SP85",
+    "icd11Term": "Aging Disorders (TM2 Candidate)",
+    "source": "Unverified AYUSH Clinical Catalog",
+    "relationshipType": "related",
+    "verified": false
+  },
+  {
+    "namcCode": "AYU-0107",
+    "ayushTerm": "Ama (Toxin Buildup)",
+    "system": "Ayurveda",
+    "icd11Tm2Code": "SP73",
+    "icd11Term": "Metabolic Impairment (TM2 Candidate)",
+    "source": "Unverified AYUSH Clinical Catalog",
+    "relationshipType": "related",
+    "verified": false
   }
 ]

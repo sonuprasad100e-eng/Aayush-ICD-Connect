@@ -266,45 +266,17 @@ class AuthService {
 
   async abhaLogin({ abhaId }) {
     if (!abhaId || !abhaId.trim()) {
-      throw { status: 400, message: 'ABHA ID is required for ABDM OAuth authentication.' };
-    }
-    const trimmed = abhaId.trim();
-    let user = await User.findOne({ abhaId: trimmed });
-    if (!user) {
-      user = await User.findOne({ email: 'doctor@caresync.in' }) || await User.findOne({ email: 'sonu@caresync.in' });
-    }
-    if (!user) {
-      throw { status: 404, message: 'No registered doctor account associated with this ABHA ID.' };
+      throw { status: 400, message: 'ABHA ID is required for ABDM authentication.' };
     }
 
-    user.lastLoginAt = new Date();
-    await user.save();
-
-    const token = jwt.sign(
-      {
-        sub: user._id.toString(),
-        id: user._id.toString(),
-        role: user.role,
-        clinicId: user.clinicId ? user.clinicId.toString() : null,
-        email: user.email
-      },
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_DEFAULT }
-    );
-
-    return {
-      access_token: token,
-      token_type: 'bearer',
-      user: {
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        clinicName: user.clinicName,
-        clinicId: user.clinicId ? user.clinicId.toString() : null,
-        photoUrl: user.photoUrl,
-        abhaId: user.abhaId
-      }
+    // Direct passwordless ABHA authentication requires live ABDM Gateway (M1/M2/M3)
+    // OAuth token and authentic Aadhaar/OTP cryptographic identity verification.
+    // To prevent authentication bypass and unauthorized account assumption,
+    // passwordless JWT issuance is strictly blocked until authentic ABDM Gateway
+    // identity verification is integrated.
+    throw {
+      status: 501,
+      message: 'ABDM (Ayushman Bharat Digital Mission) identity verification gateway is not configured. Direct passwordless ABHA login is disabled for security. Please sign in with your registered Email/ABHA ID and Password.'
     };
   }
 }

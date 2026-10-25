@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const User = require('../models/User');
@@ -7,6 +9,9 @@ const Mapping = require('../models/Mapping');
 const Report = require('../models/Report');
 const AnalyticsSnapshot = require('../models/AnalyticsSnapshot');
 const Clinic = require('../models/Clinic');
+const TerminologyCrosswalk = require('../models/TerminologyCrosswalk');
+const Counter = require('../models/Counter');
+const patientService = require('../services/patientService');
 
 async function seedDemoData() {
   console.log('[Seed] Checking existing data...');
@@ -212,6 +217,17 @@ async function seedDemoData() {
   }
   if (seededPatientsCount > 0) {
     console.log(`[Seed] Seeded ${seededPatientsCount} patients.`);
+  }
+
+  // Synchronize Counter with the highest existing numerical patientCode suffix
+  const maxPatientNum = await patientService.getHighestExistingPatientNumber();
+  if (maxPatientNum > 0) {
+    await Counter.findOneAndUpdate(
+      { _id: 'patientCode' },
+      { $max: { seq: maxPatientNum } },
+      { upsert: true, new: true }
+    );
+    console.log(`[Seed] Patient code counter synchronized to at least: ${maxPatientNum}`);
   }
 
   // 4. Seed Diagnoses
@@ -432,7 +448,139 @@ async function seedDemoData() {
     console.log('[Seed] Seeded analytics snapshot.');
   }
 
+  // 8. Seed Authoritative Terminology Crosswalks (Idempotent)
+  await seedAuthoritativeCrosswalks({
+    clinicId: clinic ? clinic._id : undefined,
+    doctorId: doctor ? doctor._id : undefined
+  });
+
   console.log('[Seed] Demo data check and seeding complete!');
+}
+
+/**
+ * Idempotently seeds verified and candidate terminology crosswalks
+ * from the authoritative dataset into TerminologyCrosswalk collection.
+ *
+ * Safety guarantees:
+ * - Upsert/exists check prevents duplicates.
+ * - Never overwrites an existing verified crosswalk.
+ * - Never degrades verified status to unverified.
+ * - Leaves existing patient records completely untouched.
+ */
+async function seedAuthoritativeCrosswalks(options = {}) {
+  const crosswalkFilePath = options.filePath || path.resolve(__dirname, '../../data/mappings/namaste_icd11_tm2_crosswalk.json');
+
+  if (!fs.existsSync(crosswalkFilePath)) {
+    console.warn(`[Crosswalk Seed] Dataset file not found at ${crosswalkFilePath}`);
+    return { seeded: 0, existing: 0, skipped: 0 };
+  }
+
+  let items = [];
+  try {
+    const raw = fs.readFileSync(crosswalkFilePath, 'utf8');
+    items = JSON.parse(raw);
+  } catch (err) {
+    console.error(`[Crosswalk Seed] Error reading crosswalk dataset:`, err);
+    return { seeded: 0, existing: 0, skipped: 0, error: err.message };
+  }
+
+  let seededCount = 0;
+  let existingCount = 0;
+  let skippedCount = 0;
+
+  for (const item of items) {
+    if (!item.namcCode || !item.icd11Tm2Code) {
+      skippedCount++;
+      continue;
+    }
+
+    const namcCodeTrimmed = item.namcCode.trim();
+    const icdTrimmed = item.icd11Tm2Code.trim();
+
+    // Check for exact crosswalk pairing
+    const existing = await TerminologyCrosswalk.findOne({
+      namcCode: namcCodeTrimmed,
+      icd11Tm2Code: icdTrimmed
+    });
+
+    if (existing) {
+      existingCount++;
+      // If already exists, do not overwrite or modify doctor verification
+      continue;
+    }
+
+    // If incoming record is verified, check if there is an existing conflicting verified record
+    if (item.verified === true) {
+      const conflict = await TerminologyCrosswalk.findOne({
+        $or: [
+          { namcCode: namcCodeTrimmed, verified: true },
+          { icd11Tm2Code: icdTrimmed, verified: true }
+        ]
+      });
+
+      if (conflict) {
+        console.warn(`[Crosswalk Seed] Skipping conflicting verified crosswalk: ${namcCodeTrimmed} <-> ${icdTrimmed} (already mapped to ${conflict.namcCode} <-> ${conflict.icd11Tm2Code})`);
+        skippedCount++;
+        continue;
+      }
+    }
+
+    // Create the crosswalk entry
+    const isVerified = item.verified === true;
+    const docData = {
+      namcCode: namcCodeTrimmed,
+      namcId: item.namcId ? String(item.namcId).trim() : undefined,
+      ayushTerm: item.ayushTerm || 'AYUSH Diagnosis',
+      system: item.system || 'Ayurveda',
+      icd11Tm2Code: icdTrimmed,
+      icd11Term: item.icd11Term || 'Traditional Medicine Disorder',
+      whoEntityUri: item.whoEntityUri || undefined,
+      whoParentUri: item.whoParentUri || undefined,
+      whoRelease: item.whoRelease || '2026-01',
+      whoSynonyms: Array.isArray(item.whoSynonyms) ? item.whoSynonyms : [],
+      source: item.source || (isVerified ? 'Ministry of Ayush & WHO ICD-11 TM2' : 'Unverified AYUSH Clinical Catalog'),
+      relationshipType: item.relationshipType || (isVerified ? 'equivalent' : 'related'),
+      verified: isVerified,
+      verificationMethod: isVerified ? (item.verificationMethod || 'official_crosswalk') : undefined,
+      verifiedAt: isVerified ? (item.verifiedAt || new Date()) : undefined
+    };
+
+    if (options.doctorId && isVerified) {
+      docData.verifiedBy = options.doctorId;
+    }
+
+    await TerminologyCrosswalk.create(docData);
+    seededCount++;
+
+    // Synchronize verified crosswalks into Mapping for the clinic if clinicId is provided
+    if (isVerified && options.clinicId) {
+      const existingMapping = await Mapping.findOne({
+        clinicId: options.clinicId,
+        namasteCode: namcCodeTrimmed,
+        icd11Tm2Code: icdTrimmed
+      });
+
+      if (!existingMapping) {
+        await Mapping.create({
+          searchTerm: `${docData.ayushTerm} (${docData.icd11Term})`,
+          namasteCode: namcCodeTrimmed,
+          icd11Tm2Code: icdTrimmed,
+          icd11BioCode: '',
+          confidenceScore: 98,
+          confirmedBy: options.doctorId,
+          clinicId: options.clinicId,
+          status: 'confirmed',
+          confirmedAt: new Date()
+        });
+      }
+    }
+  }
+
+  if (seededCount > 0) {
+    console.log(`[Crosswalk Seed] Successfully initialized ${seededCount} terminology crosswalks (${existingCount} existed).`);
+  }
+
+  return { seeded: seededCount, existing: existingCount, skipped: skippedCount };
 }
 
 // Standalone CLI execution
@@ -451,4 +599,5 @@ if (require.main === module) {
   })();
 }
 
+seedDemoData.seedAuthoritativeCrosswalks = seedAuthoritativeCrosswalks;
 module.exports = seedDemoData;
