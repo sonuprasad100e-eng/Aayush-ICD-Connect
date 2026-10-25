@@ -12,8 +12,16 @@ const Clinic = require('../models/Clinic');
 const TerminologyCrosswalk = require('../models/TerminologyCrosswalk');
 const Counter = require('../models/Counter');
 const patientService = require('../services/patientService');
+const env = require('../config/env');
 
-async function seedDemoData() {
+async function seedDemoData(options = {}) {
+  // Prevent automatic creation of demo doctor accounts with default passwords in production
+  if (env.NODE_ENV === 'production' && !options.allowExplicitDemo) {
+    console.log('[Seed] Production environment detected (NODE_ENV=production). Skipping automatic creation of demo doctor accounts and mock patients.');
+    await seedAuthoritativeCrosswalks();
+    return;
+  }
+
   console.log('[Seed] Checking existing data...');
 
   // 1. Create or retrieve the demo CareSync clinic first
@@ -583,13 +591,13 @@ async function seedAuthoritativeCrosswalks(options = {}) {
   return { seeded: seededCount, existing: existingCount, skipped: skippedCount };
 }
 
-// Standalone CLI execution
+// Standalone CLI execution (e.g. npm run seed)
 if (require.main === module) {
   const { connectDB, disconnectDB } = require('../config/db');
   (async () => {
     try {
       await connectDB();
-      await seedDemoData();
+      await seedDemoData({ allowExplicitDemo: true });
       await disconnectDB();
       process.exit(0);
     } catch (err) {

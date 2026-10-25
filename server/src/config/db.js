@@ -6,6 +6,29 @@ let mongoMemoryServer = null;
 async function connectDB() {
   const uri = env.MONGODB_URI;
 
+  // Strict production database enforcement:
+  if (env.NODE_ENV === 'production') {
+    if (!uri || uri.trim() === '') {
+      const errMessage = '[DB Fatal] MONGODB_URI environment variable is required when NODE_ENV=production. In-memory fallback is disabled in production. Startup aborted.';
+      console.error(errMessage);
+      throw new Error(errMessage);
+    }
+
+    try {
+      console.log(`[DB] Attempting production connection to MongoDB at: ${uri.replace(/:[^:]*@/, ':****@')}`);
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 5000
+      });
+      console.log('[DB] Successfully connected to production MongoDB.');
+      return mongoose.connection;
+    } catch (err) {
+      const errMessage = `[DB Fatal] Production database connection failed: ${err.message}. In-memory fallback is disabled in production. Startup aborted.`;
+      console.error(errMessage);
+      throw new Error(errMessage);
+    }
+  }
+
+  // Development and test environments:
   if (uri && uri.trim() !== '') {
     try {
       console.log(`[DB] Attempting connection to MongoDB at: ${uri.replace(/:[^:]*@/, ':****@')}`);

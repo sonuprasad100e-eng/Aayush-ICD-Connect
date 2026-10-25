@@ -36,12 +36,45 @@ if (env.NODE_ENV !== 'test') {
 }
 
 // CORS configuration
-app.use(
-  cors({
-    origin: true, // Allow requests from any origin or CLIENT_URL
-    credentials: true
-  })
-);
+const corsOptionsDelegate = (req, callback) => {
+  // 1. In development and test environments, allow all origins
+  if (env.NODE_ENV !== 'production') {
+    return callback(null, { origin: true, credentials: true });
+  }
+
+  const origin = req.header('Origin');
+  // 2. Allow requests with no Origin header (same-origin browser requests, server-to-server, curl, mobile apps)
+  if (!origin) {
+    return callback(null, { origin: true, credentials: true });
+  }
+
+  const cleanOrigin = origin.trim().replace(/\/$/, '');
+  const host = req.get('host');
+  const allowedOrigins = (env.CLIENT_URL || '')
+    .split(',')
+    .map(o => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+  // 3. Allow same-origin requests when Express serves client/ on the same host (e.g. Render web service)
+  const isSameHost = host && (
+    cleanOrigin === `https://${host}` ||
+    cleanOrigin === `http://${host}`
+  );
+
+  // 4. Allow configured frontend origin(s) (e.g. from CLIENT_URL)
+  const isAllowedOrigin = allowedOrigins.includes(cleanOrigin);
+
+  if (isSameHost || isAllowedOrigin) {
+    return callback(null, { origin: cleanOrigin, credentials: true });
+  }
+
+  // 5. Reject unauthorized cross-origin requests in production
+  const corsError = new Error(`CORS policy violation: Origin '${origin}' is not authorized.`);
+  corsError.status = 403;
+  return callback(corsError);
+};
+
+app.use(cors(corsOptionsDelegate));
 
 // Body parser
 app.use(express.json());

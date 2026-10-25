@@ -9,9 +9,14 @@ const errorHandler = (err, req, res, next) => {
     return res.status(400).json({ detail: `Upload error: ${err.message}` });
   }
 
-  // Handle custom validation or input errors
+  // Handle custom validation, authorization, or CORS errors
   if (err.status) {
     return res.status(err.status).json({ detail: err.message, message: err.message });
+  }
+
+  // Handle CORS policy rejection
+  if (err.message && err.message.includes('CORS policy violation')) {
+    return res.status(403).json({ detail: err.message, message: err.message });
   }
 
   // Handle MongoDB duplicate key errors (E11000)

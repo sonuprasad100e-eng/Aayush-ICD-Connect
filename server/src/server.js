@@ -8,8 +8,15 @@ async function startServer() {
     // 1. Connect to Database (with in-memory fallback if MONGODB_URI not provided/unreachable)
     await connectDB();
 
-    // 2. Auto-seed initial demo data if database is fresh/empty
-    await seedDemoData();
+    // 2. Auto-seed initial demo data if database is fresh/empty (disabled in production)
+    if (env.NODE_ENV === 'production') {
+      console.log('[Seed] Production environment detected (NODE_ENV=production). Automatic demo account seeding is disabled.');
+      if (typeof seedDemoData.seedAuthoritativeCrosswalks === 'function') {
+        await seedDemoData.seedAuthoritativeCrosswalks();
+      }
+    } else {
+      await seedDemoData();
+    }
 
     // 3. Start listening for incoming HTTP requests
     const server = app.listen(env.PORT, () => {
