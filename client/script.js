@@ -1688,7 +1688,7 @@ document.addEventListener('DOMContentLoaded', function () {
               </div>
               <div class="card-body p-3">
                 ${hasMultiple ? `<div class="alert alert-info py-1 px-2 small mb-3"><i class="fa-solid fa-info-circle me-1"></i> Found <strong>${data.matchCount}</strong> matching verified crosswalks:</div>` : ''}
-                
+
                 ${matches.map(m => `
                   <div class="p-2 mb-2 rounded bg-light border">
                     <div class="row g-2 align-items-center">
